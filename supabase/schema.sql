@@ -13,10 +13,6 @@ create table if not exists public.grimoire_entries (
 alter table public.grimoire_entries enable row level security;
 
 -- Chaque compte ne voit et ne modifie que ses propres lignes.
-drop policy if exists "grimoire_entries_select" on public.grimoire_entries;
-drop policy if exists "grimoire_entries_insert" on public.grimoire_entries;
-drop policy if exists "grimoire_entries_update" on public.grimoire_entries;
-drop policy if exists "grimoire_entries_delete" on public.grimoire_entries;
 create policy "grimoire_entries_select" on public.grimoire_entries for select to authenticated using (auth.uid() = user_id);
 create policy "grimoire_entries_insert" on public.grimoire_entries for insert to authenticated with check (auth.uid() = user_id);
 create policy "grimoire_entries_update" on public.grimoire_entries for update to authenticated using (auth.uid() = user_id) with check (auth.uid() = user_id);
