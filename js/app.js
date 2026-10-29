@@ -7,7 +7,7 @@ import { sfx, setSound } from "./sound.js";
 import { makeCard, shareBlob } from "./share.js";
 import { initMotes, burst } from "./motes.js";
 
-const VERSION = "2.3.0";
+const VERSION = "2.4.0";
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = n => Number(n).toLocaleString("fr-FR");
@@ -20,7 +20,8 @@ const isoDay = ts => { const d = new Date(ts); return `${d.getFullYear()}-${Stri
 
 /* ---------- État ---------- */
 const PREF = "grimoire:prefs";
-const prefs = { game: "bg3", sound: true, ...readJSON(PREF) };
+const prefs = { game: "bg3", sound: true, calm: true, ...readJSON(PREF) };
+document.body.classList.toggle("calm", prefs.calm);
 const savePrefs = () => writeJSON(PREF, prefs);
 setSound(prefs.sound);
 
@@ -134,12 +135,12 @@ function setRun(patch) { sp.put("run", { ...run(), ...patch }); sync.schedule();
 function medal(t, cls = "") { return `<span class="medal m-${t} ${cls}">${cup(t)}</span>`; }
 function pills(x) {
   const st = statusOf(x), out = [];
-  if (st === "doing") out.push(`<span class="pill doing">En cours</span>`);
   if (atRisk(x)) out.push(`<span class="pill risk">${UI.warn}Manquable</span>`);
   else if (missed(x)) out.push(`<span class="pill missed">Manqué cette partie</span>`);
+  if (st === "doing") out.push(`<span class="pill doing">En cours</span>`);
+  if (x.r < 10) out.push(`<span class="pill rare">${pct(x.r)}</span>`);
   if (once(x)) out.push(`<span class="pill once">1 partie</span>`);
   if (x.durge) out.push(`<span class="pill durge">Sombres Pulsions</span>`);
-  if (x.r < 10) out.push(`<span class="pill rare">${pct(x.r)}</span>`);
   return out.join("");
 }
 function bar(x) {
@@ -166,6 +167,13 @@ function card(x) {
 function mini(x) {
   return `<button type="button" class="mini" data-open="${x.id}">${medal(x.t, "sm")}<span><b>${esc(x.n)}</b><small>${esc(G.cats[x.c].l)}${x.goal ? ` · ${fmt(ts(x.id).progress || 0)}/${fmt(x.goal)}` : ""}</small></span></button>`;
 }
+/* Sections repliables : on n'ouvre que ce dont on a besoin ; l'état est retenu sur l'appareil */
+const FOLDS = "grimoire:folds";
+const folds = readJSON(FOLDS);
+const isOpen = (id, def) => folds[id] ?? def;
+const fold = (id, title, body, def = false) => `<details class="fold" data-fold="${id}"${isOpen(id, def) ? " open" : ""}><summary><span>${title}</span><i aria-hidden="true">${UI.arrow}</i></summary><div class="fold-b">${body}</div></details>`;
+const sectionFold = (id, title, body, def = false) => `<details class="panel fold-panel" data-fold="${id}"${isOpen(id, def) ? " open" : ""}>${corners()}<summary class="ph"><span>${title}</span><i aria-hidden="true">${UI.arrow}</i></summary><div class="fold-b">${body}</div></details>`;
+document.addEventListener("toggle", e => { const d = e.target; if (d.dataset?.fold) { folds[d.dataset.fold] = d.open; writeJSON(FOLDS, folds); } }, true);
 const section = (title, body, extra = "") => `<section class="panel ${extra}">${corners()}<h2 class="ph">${title}</h2>${body}</section>`;
 
 /* ---------- En-tête & navigation ---------- */
@@ -220,9 +228,9 @@ function vHome() {
   </div><div class="col-b">
   ${alert}
   ${G.party && dueComps().length ? `<button type="button" class="callout" data-go="run" data-jt="groupe"><span class="callout-ico">${INK.star}</span><span><b>Montée de niveau en attente</b><small>${dueComps().map(c => esc(c.n)).join(", ")} : le groupe est niveau ${party().level}. Vois quoi choisir.</small></span>${UI.arrow}</button>` : ""}
-  ${hasRun() ? section(`Faisable maintenant <span class="ph-n">${esc(actLabel(r.act))} · ${now.length}</span>`, now.length ? `<div class="minis">${now.map(mini).join("")}</div>` : `<p class="muted">Rien d'autre à faire dans cet acte pour ta partie actuelle. Avance d'un acte dans ta fiche de partie.</p>`) : ""}
+  ${hasRun() ? sectionFold("now", `Faisable maintenant <span class="ph-n">${esc(actLabel(r.act))} · ${now.length}</span>`, now.length ? `<div class="minis">${now.map(mini).join("")}</div>` : `<p class="muted">Rien d'autre à faire dans cet acte pour ta partie actuelle. Avance d'un acte dans ta fiche de partie.</p>`) : ""}
   ${vRoute(r)}
-  ${section("Bibliothèque des guides", `<div class="guides">${G.guides.map(g => `<a href="${esc(g.u)}" target="_blank" rel="noopener"><b>${esc(g.n)}<span>${esc(g.lang || "")}</span></b><small>${esc(g.d || "")}</small></a>`).join("")}</div>`, "collapsible")}
+  ${sectionFold("guides", "Bibliothèque des guides", `<div class="guides">${G.guides.map(g => `<a href="${esc(g.u)}" target="_blank" rel="noopener"><b>${esc(g.n)}<span>${esc(g.lang || "")}</span></b><small>${esc(g.d || "")}</small></a>`).join("")}</div>`)}
   </div></div>`;
 }
 function vRoute(r) {
@@ -240,7 +248,7 @@ function vRoute(r) {
   const hint = [];
   if (left.some(x => x.id === "coup-critique")) hint.push("Une ultime partie en <b>Tacticien</b> couvre « Coup critique » et, avec l'origine <b>Sombres Pulsions</b>, « Les péchés du père ».");
   if (left.some(x => once(x) && x.id !== "coup-critique")) hint.push("Enchaîne-y les hauts faits « 1 partie » : ils se cumulent du début à la fin.");
-  return section("Journal de quête", `${hint.length ? `<p class="hint">${hint.join(" ")}</p>` : ""}<ol class="route">${nodes}</ol>`);
+  return sectionFold("route", `Journal de quête <span class="ph-n">${left.length} restants</span>`, `${hint.length ? `<p class="hint">${hint.join(" ")}</p>` : ""}<ol class="route">${nodes}</ol>`);
 }
 
 /* ---------- Vue : Registre ---------- */
@@ -407,17 +415,19 @@ function statsHTML(stats, prio = [], scope) {
 function planHTML(clsId, level, over = {}) {
   const C = G.party.CLASSES[clsId];
   if (!C) return `<p class="muted">Choisis une classe pour voir le plan de progression.</p>`;
-  return `<ol class="plan">${C.lv.map((r, i) => {
+  const lo = Math.min(level + 1, 10);
+  return `<ol class="plan compact">${C.lv.map((r, i) => {
     const n = i + 1, state = n <= level ? "past" : n === level + 1 ? "next" : "";
+    const far = n < lo || n > lo + 2 ? " far" : "";
     const pick = over[n] || r.p || "";
-    return `<li class="lvl ${state}${r.feat ? " feat" : ""}${r.sub ? " sub" : ""}${r.key ? " key" : ""}">
+    return `<li class="lvl ${state}${far}${r.feat ? " feat" : ""}${r.sub ? " sub" : ""}${r.key ? " key" : ""}">
       <span class="lvl-n">${state === "past" ? UI.check : n}</span>
       <div class="lvl-b">${state === "next" ? `<span class="next-tag">Prochain niveau · ${n}</span>` : ""}
         <b>${esc(r.f)}</b>${r.feat ? `<em class="tag t-feat">Don</em>` : ""}${r.key ? `<em class="tag t-key">Palier clé</em>` : ""}
         ${pick ? `<p class="pick">${esc(pick)}</p>` : ""}
       </div>
     </li>`;
-  }).join("")}</ol>`;
+  }).join("")}</ol><button type="button" class="plan-all" data-planall>Voir les 12 niveaux</button>`;
 }
 function compRow(c) {
   const s = cst(c.id), clsId = s.cls || c.cls, C = G.party.CLASSES[clsId], L = compLvl(c), nxt = C?.lv[L], sub = s.sub || c.build.sub;
@@ -509,17 +519,17 @@ function sheetComp(c) {
       <div><span class="lbl">Niveau</span><div class="stepper"><button type="button" data-clvl="-1" aria-label="Niveau précédent">${UI.minus}</button><output class="lv-big">${L}</output><button type="button" data-clvl="1" aria-label="Niveau suivant">${UI.plus}</button></div></div>
       <p class="lv-info">${L < pt.level ? `<b class="warn">À monter : le groupe est niveau ${pt.level}.</b> Regarde le plan ci-dessous.` : L < 12 ? `Niveau ${L + 1} à ${fmt(P.XP[L + 1])} XP de groupe.` : "Niveau maximum."}</p>
     </div>
-    <div><span class="lbl">Caractéristiques${!stats ? " · à renseigner" : c.statsCheck && !s.stats ? " · à vérifier en jeu" : ""}</span>${statsHTML(stats, c.build.prio, "comp:" + c.id)}
-      <p class="prio">Priorités : ${c.build.prio.map(k => `<b>${P.STATS.find(z => z[0] === k)[2]}</b>`).join(" › ")}</p></div>
-    <div><span class="lbl">Build conseillé</span><div class="build-card"><b>${esc(c.build.n)}</b>${c.build.sub ? `<small>Sous-classe : ${esc(c.build.sub)}</small>` : ""}<p>${esc(c.build.d)}</p>${c.build.alt?.length ? `<span class="lbl sm">Variantes</span><ul>${c.build.alt.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}</div></div>
+    ${fold("c-plan", `Quoi choisir aux prochains niveaux`, planHTML(clsId, L, sameCls ? c.build.p : {}), true)}
+    ${fold("c-stats", "Caractéristiques", `${statsHTML(stats, c.build.prio, "comp:" + c.id)}
+      <p class="prio">Priorités : ${c.build.prio.map(k => `<b>${P.STATS.find(z => z[0] === k)[2]}</b>`).join(" › ")}</p>`)}
+    ${fold("c-build", "Build conseillé et classe", `<div class="build-card"><b>${esc(c.build.n)}</b>${c.build.sub ? `<small>Sous-classe : ${esc(c.build.sub)}</small>` : ""}<p>${esc(c.build.d)}</p>${c.build.alt?.length ? `<span class="lbl sm">Variantes</span><ul>${c.build.alt.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}</div>
     <div><label class="lbl" for="ccls">Classe (après passage chez Flétriss)</label><select id="ccls" class="select">${Object.entries(P.CLASSES).map(([k, v]) => `<option value="${k}" ${k === clsId ? "selected" : ""}>${v.l}${k === c.cls ? " (d'origine)" : ""}</option>`).join("")}</select></div>
-    <div><span class="lbl">Sous-classe choisie</span><div class="chips">${C.subs.map(x => `<button type="button" class="chip" data-csub="${esc(x)}" aria-pressed="${s.sub === x}">${esc(x)}</button>`).join("")}</div></div>
-    <div><span class="lbl">Plan de niveaux · ${esc(C.l)}</span>${planHTML(clsId, L, sameCls ? c.build.p : {})}</div>
-    <div><span class="lbl">Relation</span><div class="appr">${APPR.map((a, i) => `<button type="button" data-cappr="${i}" aria-pressed="${s.approval === i}">${a}</button>`).join("")}</div>
-      <button type="button" class="toggle" data-cromance aria-pressed="${!!s.romance}"><span>${INK.heart}Romance en cours</span><i></i></button></div>
-    ${c.tips.length ? `<div class="tip parch"><div class="parch-in"><span class="ink-lbl">Conseils du grimoire</span><ul class="ink-list">${c.tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul></div></div>` : ""}
-    ${trophies.length ? `<div><span class="lbl">Trophées liés</span><div class="chips-open">${trophies.map(x => `<button type="button" data-open="${x.id}"${statusOf(x) === "done" ? ' class="is-done"' : ""}><i class="dot m-${x.t}"></i>${esc(x.n)}${statusOf(x) === "done" ? " · obtenu" : ""}</button>`).join("")}</div></div>` : ""}
-    <div><label class="lbl" for="cnote">Mes notes</label><textarea id="cnote" placeholder="Équipement, choix de dialogue, où en est sa quête…">${esc(s.note)}</textarea></div>
+    <div><span class="lbl">Sous-classe choisie</span><div class="chips">${C.subs.map(x => `<button type="button" class="chip" data-csub="${esc(x)}" aria-pressed="${s.sub === x}">${esc(x)}</button>`).join("")}</div></div>`)}
+    ${fold("c-rel", `Relation <span class="ph-n">${APPR[s.approval]}${s.romance ? " · romance" : ""}</span>`, `<div class="appr">${APPR.map((a, i) => `<button type="button" data-cappr="${i}" aria-pressed="${s.approval === i}">${a}</button>`).join("")}</div>
+      <button type="button" class="toggle" data-cromance aria-pressed="${!!s.romance}"><span>${INK.heart}Romance en cours</span><i></i></button>`)}
+    ${c.tips.length ? fold("c-tips", "Conseils du grimoire", `<div class="tip parch"><div class="parch-in"><ul class="ink-list">${c.tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul></div></div>`) : ""}
+    ${trophies.length ? fold("c-tro", `Trophées liés <span class="ph-n">${trophies.length}</span>`, `<div class="chips-open">${trophies.map(x => `<button type="button" data-open="${x.id}"${statusOf(x) === "done" ? ' class="is-done"' : ""}><i class="dot m-${x.t}"></i>${esc(x.n)}${statusOf(x) === "done" ? " · obtenu" : ""}</button>`).join("")}</div>`) : ""}
+    ${fold("c-notes", "Mes notes", `<textarea id="cnote" aria-label="Mes notes" placeholder="Équipement, choix de dialogue, où en est sa quête…">${esc(s.note)}</textarea>`, !!s.note)}
   </div>`;
 }
 function setComp(c, patch) {
@@ -617,7 +627,7 @@ function vMore() {
     <div class="row2"><button type="button" class="btn" data-act="tpl">${UI.download}Modèle de jeu</button><label class="btn">${UI.upload}Importer un jeu<input type="file" accept="application/json,.json" id="gameFile" hidden></label></div>`)}
   ${section("Sauvegarde", `<p class="muted">Exporte ta progression (trophées, notes, fiche de partie) dans un fichier, pour la garder ou la restaurer.</p><div class="row2"><button type="button" class="btn" data-act="export">${UI.download}Exporter</button><label class="btn">${UI.upload}Restaurer<input type="file" accept="application/json,.json" id="backupFile" hidden></label></div>`)}
   ${section("Partage", `<p class="muted">Une carte au format portrait avec ton d20, ta progression et tes médailles.</p><button type="button" class="btn" data-act="share">${UI.share}Créer ma carte de progression</button>`)}
-  ${section("Ambiance", `<button type="button" class="toggle" data-act="sound" aria-pressed="${prefs.sound}"><span>${prefs.sound ? UI.sound : UI.mute}Sons (sceau, dé, parchemin)</span><i></i></button>`)}
+  ${section("Confort", `<button type="button" class="toggle" data-act="calm" aria-pressed="${prefs.calm}"><span>${INK.star}Mode calme : moins d'effets, cartes plus aérées</span><i></i></button><button type="button" class="toggle" data-act="sound" aria-pressed="${prefs.sound}"><span>${prefs.sound ? UI.sound : UI.mute}Sons (sceau, dé, parchemin)</span><i></i></button>`)}
   ${section("Installer sur le téléphone", installEvt ? `<button type="button" class="btn primary" data-act="install">${UI.phone}Installer l'application</button>` : matchMedia("(display-mode: standalone)").matches ? `<p class="muted">L'application est installée. Bonne quête !</p>` : `<ol class="steps-how"><li><b>iPhone (Safari)</b> : bouton Partager, puis « Sur l'écran d'accueil ».</li><li><b>Android (Chrome)</b> : menu ⋮, puis « Installer l'application ».</li></ol>`)}
   </div>
   <p class="foot">Grimoire de platine v${VERSION} · Liste d'après PSTHC, rareté d'après Exophase. Progression calculée comme sur PlayStation : bronze ${G.points.b}, argent ${G.points.s}, or ${G.points.g} points.</p>`;
@@ -650,13 +660,13 @@ function sheetTrophy(x) {
     ${x.t === "p" ? `<p class="muted">Il se débloque tout seul quand les ${G.base.length - 1} autres hauts faits sont scellés.</p>` : `
     <div><span class="lbl">Statut</span><div class="seg">${["todo", "doing", "done"].map(v => `<button type="button" data-set="${v}" data-v="${v}" aria-pressed="${st === v}">${ST[v]}</button>`).join("")}</div></div>
     ${x.goal ? `<div><label class="lbl" for="prog">Progression</label><div class="stepper"><button type="button" data-step="-1" aria-label="Retirer">${UI.minus}</button><input id="prog" type="number" inputmode="numeric" min="0" max="${x.goal}" value="${st === "done" ? x.goal : (s.progress || 0)}" ${x.stepsDrive ? "readonly" : ""}><button type="button" data-step="1" aria-label="Ajouter">${UI.plus}</button><span>sur ${fmt(x.goal)} ${esc(x.u || "")}</span></div>${bar(x)}</div>` : ""}
-    <div class="checklist"><span class="lbl">Étapes${x.steps ? ` · ${Object.values(s.steps || {}).filter(Boolean).length + (s.custom || []).filter(z => z.d).length}/${x.steps.length + (s.custom || []).length}` : ""}</span><ul>${steps}${custom}</ul>
-      <form class="addstep" id="addStep"><input id="stepTxt" placeholder="Ajouter une étape perso…" autocomplete="off" aria-label="Nouvelle étape"><button class="btn icon" aria-label="Ajouter l'étape">${UI.plus}</button></form></div>
+    ${fold("t-steps", `Étapes${x.steps ? ` <span class="ph-n">${Object.values(s.steps || {}).filter(Boolean).length + (s.custom || []).filter(z => z.d).length}/${x.steps.length + (s.custom || []).length}</span>` : ""}`, `<div class="checklist"><ul>${steps}${custom}</ul>
+      <form class="addstep" id="addStep"><input id="stepTxt" placeholder="Ajouter une étape perso…" autocomplete="off" aria-label="Nouvelle étape"><button class="btn icon" aria-label="Ajouter l'étape">${UI.plus}</button></form></div>`, !!x.steps || !!(s.custom || []).length)}
     ${x.tip ? `<div class="tip parch"><div class="parch-in"><span class="ink-lbl">Astuce du grimoire</span><p>${esc(x.tip)}</p></div></div>` : ""}
     ${st === "done" ? `<div><label class="lbl" for="doneAt">Obtenu le</label><input type="date" id="doneAt" value="${s.doneAt ? isoDay(s.doneAt) : ""}" max="${isoDay(Date.now())}" class="date"></div>` : ""}
     `}
-    <div><span class="lbl">Soluces & vidéos</span><div class="links">${links}</div></div>
-    ${x.t !== "p" ? `<div><label class="lbl" for="note">Mes notes</label><textarea id="note" placeholder="Sauvegarde utilisée, choix faits, où tu en es…">${esc(s.note || "")}</textarea></div>` : ""}
+    ${fold("t-links", "Soluces & vidéos", `<div class="links">${links}</div>`)}
+    ${x.t !== "p" ? fold("t-notes", "Mes notes", `<textarea id="note" aria-label="Mes notes" placeholder="Sauvegarde utilisée, choix faits, où tu en es…">${esc(s.note || "")}</textarea>`, !!s.note) : ""}
   </div>`;
 }
 function sheetFilters() {
@@ -865,6 +875,7 @@ document.addEventListener("click", e => {
   if (a === "signout") return sync.signOut().then(refresh);
   if (a === "export") return exportBackup();
   if (a === "tpl") return download("modele-jeu.json", TEMPLATE);
+  if (a === "calm") { prefs.calm = !prefs.calm; savePrefs(); document.body.classList.toggle("calm", prefs.calm); return renderView(); }
   if (a === "sound") { prefs.sound = !prefs.sound; savePrefs(); setSound(prefs.sound); sfx.tick(); return renderView(); }
   if (a === "install" && installEvt) { installEvt.prompt(); installEvt.userChoice.finally(() => { installEvt = null; renderView(); }); return; }
   const tab = t.closest("[data-tab]"); if (tab) { ui.tab = tab.dataset.tab; sfx.tick(); return renderView(); }
@@ -875,6 +886,7 @@ document.addEventListener("click", e => {
   const fd = t.closest("[data-field]"); if (fd) { const r = run(); const v = r.fields[fd.dataset.field] === fd.dataset.val ? "" : fd.dataset.val; sfx.tick(); return setRun({ fields: { ...r.fields, [fd.dataset.field]: v } }); }
   const as = t.closest("[data-actset]"); if (as) return moveAct(as.dataset.actset);
   const idl = t.closest("[data-imgdel]"); if (idl) { putKey("img:" + idl.dataset.imgdel, { src: "" }); sfx.tick(); return refresh(); }
+  const pa = t.closest("[data-planall]"); if (pa) { const ol = pa.previousElementSibling, c = ol.classList.toggle("compact"); pa.textContent = c ? "Voir les 12 niveaux" : "Afficher seulement les prochains niveaux"; return; }
   const jt = t.closest("[data-jtab]"); if (jt) { ui.jtab = jt.dataset.jtab; sfx.tick(); closeSheet(); return renderView(); }
   const cp = t.closest("[data-comp]"); if (cp && !t.closest("#sheet")) return openSheet({ type: "comp", id: cp.dataset.comp });
   const pl = t.closest("[data-plvl]"); if (pl) return setPartyLevel(Number(pl.dataset.plvl));

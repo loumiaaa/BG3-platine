@@ -17,8 +17,10 @@ function mote(at) {
     c: arc ? "165,123,255" : (Math.random() < .5 ? "240,165,90" : "246,223,166"), a: Math.random() * .5 + .25, ph: Math.random() * 6.28
   };
 }
+const calm = () => document.body.classList.contains("calm");
 function frame(t) {
   cx.clearRect(0, 0, W, H);
+  if (calm()) { raf = requestAnimationFrame(frame); return; }
   for (let i = P.length - 1; i >= 0; i--) {
     const m = P[i];
     m.x += m.vx + Math.sin(t / 1400 + m.ph) * .15; m.y += m.vy; m.life--;
@@ -40,7 +42,7 @@ export function initMotes(canvas) {
   document.addEventListener("visibilitychange", () => { cancelAnimationFrame(raf); if (!document.hidden) raf = requestAnimationFrame(frame); });
 }
 export function burst(x, y) {
-  if (reduce || !W) return;
+  if (reduce || !W || calm()) return;
   const at = { x: x ?? W / 2, y: y ?? H * .35 };
   for (let i = 0; i < 40; i++) P.push(mote(at));
 }
