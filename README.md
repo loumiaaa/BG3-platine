@@ -23,7 +23,7 @@ Installable sur téléphone, fonctionne hors ligne, synchronisée entre appareil
 
 ### 1. Supabase (synchronisation)
 
-1. Crée un projet sur [supabase.com](https://supabase.com) (offre gratuite).
+1. Crée un projet sur [supabase.com](https://supabase.com) (offre gratuite), **ou réutilise un projet existant** : le grimoire n'ajoute qu'une table, `grimoire_entries`, qui ne touche pas aux autres. Les comptes sont alors partagés avec l'autre app.
 2. **SQL Editor → New query** : colle le contenu de `supabase/schema.sql`, puis **Run**.
 3. **Project Settings → API** : copie la **Project URL** et la clé **anon / public**, colle-les dans `config.js`.
    Cette clé est publique par conception : ce sont les règles RLS du schéma qui protègent tes données.

@@ -3,6 +3,8 @@
 import cfg from "../config.js";
 
 /* supabase-js 2.45.4 embarqué (vendor/) : pas de dépendance à un CDN, fonctionne hors ligne */
+/* table dédiée : peut cohabiter avec les tables d'un autre projet Supabase */
+const TABLE = "grimoire_entries";
 const LIB = new URL("../vendor/supabase.js", import.meta.url).href;
 let sb = null, user = null, spaces = [], timer = 0, running = false, again = false;
 let onStatus = () => {}, onRemote = () => {};
@@ -67,7 +69,7 @@ async function run() {
   try {
     let changed = false;
     for (const s of spaces) {
-      const { data, error } = await sb.from("entries").select("key,value,updated_at").eq("game", s.ns);
+      const { data, error } = await sb.from(TABLE).select("key,value,updated_at").eq("game", s.ns);
       if (error) throw error;
       const remote = {};
       data.forEach(r => { remote[r.key] = Number(r.updated_at); });
@@ -76,7 +78,7 @@ async function run() {
         .filter(k => !(k in remote) || (s.get(k).updatedAt || 0) > remote[k])
         .map(k => ({ user_id: user.id, game: s.ns, key: k, value: s.get(k), updated_at: s.get(k).updatedAt || 0 }));
       if (up.length) {
-        const { error: e2 } = await sb.from("entries").upsert(up, { onConflict: "user_id,game,key" });
+        const { error: e2 } = await sb.from(TABLE).upsert(up, { onConflict: "user_id,game,key" });
         if (e2) throw e2;
       }
     }
