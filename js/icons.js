@@ -17,7 +17,19 @@ export const INK = {
   star: ink(`<path d="m24 6 5 11.5 12.4 1.2-9.4 8.2 2.8 12.2L24 32.8l-10.8 6.3L16 26.9l-9.4-8.2L19 17.5z"/><path d="M24 14v12" stroke-width="1.3"/>`),
   gem: ink(`<path d="M14 9h20l7 10-17 21L7 19z"/><path d="M7 19h34M19 9l-3 10 8 21 8-21-3-10" stroke-width="1.6"/>`),
   hourglass: ink(`<path d="M13 7h22M13 41h22"/><path d="M15.5 7c0 8.5 8.5 10.5 8.5 17s-8.5 8.5-8.5 17M32.5 7c0 8.5-8.5 10.5-8.5 17s8.5 8.5 8.5 17"/><path d="M19 37l5-4 5 4z" fill="currentColor"/><path d="M24 25.5v5" stroke-width="1.4" stroke-dasharray="1 2"/>`),
-  hero: ink(`<path d="M15 21c0-7 4-12.5 9-12.5S33 14 33 21"/><path d="M12.5 41c0-9 5-15.5 11.5-15.5S35.5 32 35.5 41"/><path d="M15 21c2.4 2.6 5.4 4 9 4s6.6-1.4 9-4"/><path d="M19 19.5l2 1.2M29 19.5l-2 1.2" stroke-width="1.6"/><path d="M24 30v11" stroke-width="1.4"/>`)
+  hero: ink(`<path d="M15 21c0-7 4-12.5 9-12.5S33 14 33 21"/><path d="M12.5 41c0-9 5-15.5 11.5-15.5S35.5 32 35.5 41"/><path d="M15 21c2.4 2.6 5.4 4 9 4s6.6-1.4 9-4"/><path d="M19 19.5l2 1.2M29 19.5l-2 1.2" stroke-width="1.6"/><path d="M24 30v11" stroke-width="1.4"/>`),
+  axe: ink(`<path d="M24 7v35"/><path d="M24 12c6-4.6 13.5-3.6 16.5 2-3 6.4-9.6 8.4-16.5 6.2"/><path d="M24 12c-6-4.6-13.5-3.6-16.5 2 3 6.4 9.6 8.4 16.5 6.2"/><path d="M20.5 42h7M20 30h8M20 35h8" stroke-width="1.5"/>`),
+  lute: ink(`<path d="M30.5 30a11.5 11.5 0 1 1-13-11.4c3-.4 5.5.6 7.5 2.6s3 4.6 2.6 7.5"/><circle cx="19.5" cy="30.5" r="3.2"/><path d="M25 25 39 11"/><path d="M36.5 8.5l5 5"/><path d="M13.5 36.5l7-7" stroke-width="1.3"/>`),
+  sun: ink(`<circle cx="24" cy="24" r="7.5"/><path d="M24 5.5v6M24 36.5v6M5.5 24h6M36.5 24h6M11 11l4.2 4.2M32.8 32.8 37 37M37 11l-4.2 4.2M11 37l4.2-4.2"/><circle cx="24" cy="24" r="2.5" fill="currentColor"/>`),
+  leaf: ink(`<path d="M9 39C9 21 21 9.5 40 8.5 39 27 27.5 39 9 39z"/><path d="M9 39 31 17" /><path d="M17 31h7.5M21 27v-7M25 23h6M27.5 20.5v-4" stroke-width="1.4"/>`),
+  shield: ink(`<path d="M24 5.5 38.5 11v11c0 9.5-6.2 16.6-14.5 20.5C15.7 38.6 9.5 31.5 9.5 22V11z"/><path d="M24 11v26.5M14.5 21h19" stroke-width="1.6"/><path d="M14 13.5 24 10l10 3.5" stroke-width="1.2"/>`),
+  bow: ink(`<path d="M11 7.5c17 2.5 28 13.5 29.5 31"/><path d="M11 7.5l29.5 31" stroke-width="1.2"/><path d="M7.5 40.5 31 17"/><path d="M31 17l-1.5 5.5M31 17l-5.5 1.5"/><path d="M7.5 40.5l3.5-.8M7.5 40.5l.8-3.5" stroke-width="1.6"/>`),
+  dagger: ink(`<path d="M37 7.5h3.5V11L27 24.5l-3.5-3.5z"/><path d="M18 21.5 26.5 30"/><path d="M22.2 25.8 12 36"/><circle cx="10.3" cy="37.7" r="2.4"/><path d="M38 10l-12 12" stroke-width="1.2"/>`),
+  flame: ink(`<path d="M24 42.5c-8 0-13-6-13-13 0-8.4 7.4-11 8.2-19.5 4 3 6 7 6 11 2-2 3-4.4 3-7.5 5.4 4.2 8.8 10.4 8.8 16 0 7-5 13-13 13z"/><path d="M24 42.5c-3 0-5.2-2.2-5.2-5.2 0-4 5.2-6 5.2-10.4 3 3 5.2 6.4 5.2 10.4 0 3-2.2 5.2-5.2 5.2z" stroke-width="1.5"/>`),
+  eye: ink(`<path d="M4.5 24C9.5 16 16.5 12 24 12s14.5 4 19.5 12C38.5 32 31.5 36 24 36S9.5 32 4.5 24z"/><circle cx="24" cy="24" r="6.2"/><circle cx="24" cy="24" r="2.2" fill="currentColor"/><path d="M24 5v3.5M24 39.5V43M11.5 8.5l2 3M36.5 8.5l-2 3" stroke-width="1.4"/>`),
+  balance: ink(`<circle cx="24" cy="24" r="16.5"/><path d="M24 7.5a8.25 8.25 0 0 1 0 16.5 8.25 8.25 0 0 0 0 16.5"/><circle cx="24" cy="15.8" r="2.2" fill="currentColor"/><circle cx="24" cy="32.2" r="2.2"/>`),
+  hat: ink(`<path d="M7.5 38.5h33"/><path d="M12 38.5c2-4.2 6.2-6.4 12-6.4s10 2.2 12 6.4"/><path d="M17.5 33 26.5 6l6 27.2"/><path d="M26.5 6c3.4 1 5.6 3.4 6.4 6.6" stroke-width="1.4"/><path d="m21.5 23 2 1M25.5 16.5l1 2M26 27.5l1.6 1" stroke-width="1.5"/>`),
+  camp: ink(`<path d="M6 39 24 9l18 30z"/><path d="M24 9v30M17 39l7-12 7 12"/><path d="M4 39h40"/><path d="M33 6l3 3M36 4.5v3M38.5 6l-2 2" stroke-width="1.4"/>`)
 };
 
 export const UI = {

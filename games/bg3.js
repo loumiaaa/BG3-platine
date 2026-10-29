@@ -1,6 +1,8 @@
 /* Baldur's Gate 3 · PS5 — définition du jeu.
    Même format que games/modele-jeu.json : pour ajouter un jeu, copie ce modèle
    et importe-le depuis l'onglet « Plus » de l'app, ou ajoute un fichier ici. */
+import * as PARTY from "./bg3-party.js";
+
 const CLASSES = ["Barbare","Barde","Clerc","Druide","Ensorceleur","Guerrier","Magicien","Moine","Occultiste","Paladin","Rôdeur","Roublard"];
 
 export default {
@@ -30,6 +32,7 @@ export default {
     { id: "fin", l: "Final" }
   ],
   anyLabel: "Toute la partie",
+  party: PARTY,
   run: {
     fields: [
       { id: "origin", l: "Origine", o: [["tav","Tav"],["durge","Sombres Pulsions"],["astarion","Astarion"],["gale","Gale"],["karlach","Karlach"],["laezel","Lae'zel"],["ombrecoeur","Ombrecœur"],["wyll","Wyll"]] },

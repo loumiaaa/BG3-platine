@@ -9,7 +9,10 @@ Installable sur téléphone, fonctionne hors ligne, synchronisée entre appareil
 - **Dé du destin** : tire au sort ta prochaine quête parmi celles faisables, façon jet de compétence (classe de difficulté calculée d'après la rareté).
 - **Registre** : onglets À faire / En cours / Obtenus, recherche, filtres en codex parchemin (catégories, métal, « faisable maintenant », « manquable », « 1 partie », rares).
 - **Fiche détaillée** : statut, compteur, **checklist** (étapes prévues + étapes perso), astuce, date d'obtention modifiable, liens soluces/vidéos, notes.
-- **Fiche de partie** : origine, classe, difficulté, acte en cours. Le grimoire calcule ce qui est faisable maintenant, signale les **manquables** et demande confirmation avant un **point de non-retour**. « Nouvelle partie » archive la fiche et remet à zéro les compteurs « 1 partie ».
+- **Journal de bord · Compagnie** : niveau du groupe (seuils d'XP, repères par acte), qui est dans ton groupe (3 places), au camp, à recruter (où les trouver) ou parti. Rappel automatique quand un compagnon doit monter de niveau.
+- **Fiche compagnon** (10 compagnons) : caractéristiques modifiables avec modificateurs et priorités, build conseillé et variantes, classe après respécialisation, sous-classe, **plan de niveaux 1 → 12** (ce que la classe gagne, dons, sorts clés, prochain niveau mis en avant), relation, romance, conseils, trophées liés, notes.
+- **Journal de bord · Mon perso** : nom, origine, race, classe, sous-classe, niveau, caractéristiques et le même plan de niveaux pour ta classe (avec le guide du compagnon si tu joues une origine).
+- **Journal de bord · Partie** : origine, classe, difficulté, acte en cours. Le grimoire calcule ce qui est faisable maintenant, signale les **manquables** et demande confirmation avant un **point de non-retour**. « Nouvelle partie » archive la fiche et remet à zéro les compteurs « 1 partie ».
 - **Chronique** : courbe de progression dans le temps et frise des sceaux par mois.
 - **Partage** : carte PNG 1080×1350 avec ton d20 et tes médailles.
 - **Multi-jeux** : importe d'autres platines à partir du modèle `games/modele-jeu.json`.
@@ -66,7 +69,8 @@ js/icons.js           icônes encre, coupes, volutes
 js/share.js           carte de partage
 js/sound.js           sons
 js/motes.js           braises en fond
-games/bg3.js          données Baldur's Gate 3
+games/bg3.js          données Baldur's Gate 3 (trophées)
+games/bg3-party.js    classes, compagnons, seuils d'XP
 supabase/schema.sql   table et règles d'accès
 ```
 

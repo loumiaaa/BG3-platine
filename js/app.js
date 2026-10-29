@@ -7,7 +7,7 @@ import { sfx, setSound } from "./sound.js";
 import { makeCard, shareBlob } from "./share.js";
 import { initMotes, burst } from "./motes.js";
 
-const VERSION = "2.0.0";
+const VERSION = "2.1.0";
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = n => Number(n).toLocaleString("fr-FR");
@@ -178,9 +178,9 @@ function renderBar() {
     </button>
     <button type="button" class="sync" data-go="more" data-s="${sync.status}" aria-label="État de la synchronisation : ${SYNC_TXT[sync.status]}"><i></i><span>${SYNC_TXT[sync.status]}</span></button>`;
 }
-const NAV = [["home", "Grimoire", "book"], ["list", "Registre", "map"], ["run", "Partie", "hero"], ["chron", "Chronique", "hourglass"], ["more", "Plus", "star"]];
+const NAV = [["home", "Grimoire", "book"], ["list", "Registre", "map"], ["run", "Journal", "hero"], ["chron", "Chronique", "hourglass"], ["more", "Plus", "star"]];
 function renderNav() {
-  $("#nav").innerHTML = NAV.map(([k, l, i]) => `<button type="button" data-go="${k}" ${ui.view === k ? 'aria-current="page"' : ""}><span class="nav-ico">${INK[i]}</span><span>${l}</span>${k === "run" && hasRun() && G.base.some(x => atRisk(x)) ? `<em aria-label="Manquables"></em>` : ""}</button>`).join("");
+  $("#nav").innerHTML = NAV.map(([k, l, i]) => `<button type="button" data-go="${k}" ${ui.view === k ? 'aria-current="page"' : ""}><span class="nav-ico">${INK[i]}</span><span>${l}</span>${k === "run" && ((hasRun() && G.base.some(x => atRisk(x))) || dueComps().length) ? `<em aria-label="À voir"></em>` : ""}</button>`).join("");
 }
 
 /* ---------- Vue : Grimoire ---------- */
@@ -190,7 +190,7 @@ function vHome() {
   const risk = G.base.filter(x => atRisk(x, r)), cur = G.acts[actIdx(r.act)];
   const now = G.base.filter(x => doable(x, r));
   let alert = "";
-  if (!hasRun()) alert = `<button type="button" class="callout" data-go="run"><span class="callout-ico">${INK.hero}</span><span><b>Ouvre ta fiche de partie</b><small>Origine, difficulté, acte en cours : le grimoire te dira ce qui est faisable maintenant et ce que tu risques de manquer.</small></span>${UI.arrow}</button>`;
+  if (!hasRun()) alert = `<button type="button" class="callout" data-go="run" data-jt="partie"><span class="callout-ico">${INK.hero}</span><span><b>Ouvre ta fiche de partie</b><small>Origine, difficulté, acte en cours : le grimoire te dira ce qui est faisable maintenant et ce que tu risques de manquer.</small></span>${UI.arrow}</button>`;
   else if (risk.length) alert = `<section class="alert">${UI.warn}<div><h2>Avant de quitter ${esc(cur?.l || "")}</h2><p>${esc(cur?.close || "Ces hauts faits ne seront plus accessibles ensuite.")}</p><div class="chips-open">${risk.map(x => `<button type="button" data-open="${x.id}"><i class="dot m-${x.t}"></i>${esc(x.n)}</button>`).join("")}</div></div></section>`;
 
   return `
@@ -217,6 +217,7 @@ function vHome() {
     <button type="button" class="btn icon" data-act="share" aria-label="Partager ma progression">${UI.share}</button>
   </div>
   ${alert}
+  ${G.party && dueComps().length ? `<button type="button" class="callout" data-go="run" data-jt="groupe"><span class="callout-ico">${INK.star}</span><span><b>Montée de niveau en attente</b><small>${dueComps().map(c => esc(c.n)).join(", ")} : le groupe est niveau ${party().level}. Vois quoi choisir.</small></span>${UI.arrow}</button>` : ""}
   ${hasRun() ? section(`Faisable maintenant <span class="ph-n">${esc(actLabel(r.act))} · ${now.length}</span>`, now.length ? `<div class="minis">${now.map(mini).join("")}</div>` : `<p class="muted">Rien d'autre à faire dans cet acte pour ta partie actuelle. Avance d'un acte dans ta fiche de partie.</p>`) : ""}
   ${vRoute(r)}
   ${section("Bibliothèque des guides", `<div class="guides">${G.guides.map(g => `<a href="${esc(g.u)}" target="_blank" rel="noopener"><b>${esc(g.n)}<span>${esc(g.lang || "")}</span></b><small>${esc(g.d || "")}</small></a>`).join("")}</div>`, "collapsible")}
@@ -295,8 +296,8 @@ function listHTML() {
   return h;
 }
 
-/* ---------- Vue : Partie ---------- */
-function vRun() {
+/* ---------- Vue : Journal de bord ---------- */
+function vRunSheet() {
   const r = run(), started = hasRun();
   const fields = G.run.fields.map(f => `<div class="field"><span class="ink-lbl">${esc(f.l)}</span><div class="opts">${f.o.map(([v, l]) => `<button type="button" data-field="${f.id}" data-val="${v}" aria-pressed="${r.fields[f.id] === v}">${esc(l)}</button>`).join("")}</div></div>`).join("");
   const track = G.acts.map((a, i) => `<button type="button" class="stop${a.id === r.act ? " on" : ""}${i < actIdx(r.act) ? " past" : ""}" data-actset="${a.id}"><i></i><span>${esc(a.l)}</span></button>`).join("");
@@ -339,15 +340,195 @@ async function moveAct(to) {
   setRun({ act: to });
 }
 async function newRun() {
-  const ok = await confirmBox({ title: "Nouvelle partie", body: "<p>La fiche actuelle sera archivée et les compteurs « 1 partie » non obtenus remis à zéro.</p>", yes: "Commencer", no: "Annuler" });
+  const ok = await confirmBox({ title: "Nouvelle partie", body: "<p>La fiche actuelle sera archivée, les compteurs « 1 partie » non obtenus remis à zéro, et ta compagnie repart du niveau 1 (tes notes sont conservées).</p>", yes: "Commencer", no: "Annuler" });
   if (!ok) return;
   const r = run();
   G.base.filter(x => once(x) && statusOf(x) !== "done").forEach(x => {
     const s = ts(x.id);
     if (s.progress || s.steps || s.status === "doing") save(x, { ...s, progress: 0, steps: {}, status: "todo" });
   });
+  if (G.party) {
+    G.party.COMPANIONS.forEach(c => { if (sp.get("comp:" + c.id)) sp.put("comp:" + c.id, { note: cst(c.id).note }); });
+    sp.put("pc", { note: pc().note });
+    sp.put("party", { level: 1 });
+  }
   sp.put("run", { name: "", fields: {}, act: G.acts[0]?.id || "any", startedAt: Date.now(), archive: [...(r.archive || []), { name: r.name, fields: r.fields, act: r.act, startedAt: r.startedAt, endedAt: Date.now() }] });
   sync.schedule(); sfx.page(); refresh();
+}
+
+/* ---------- Journal : compagnie, personnage ---------- */
+const PST = { party: "En groupe", camp: "Au camp", todo: "À recruter", gone: "Parti·e" };
+const APPR = ["Hostile", "Méfiance", "Neutre", "Bonne entente", "Très proche"];
+const party = () => ({ level: 1, ...(sp.get("party") || {}) });
+const cst = id => ({ status: "todo", level: 0, cls: "", sub: "", stats: null, approval: 2, romance: false, note: "", ...(sp.get("comp:" + id) || {}) });
+const pc = () => ({ name: "", race: "", sub: "", level: 1, stats: null, note: "", ...(sp.get("pc") || {}) });
+const putKey = (k, v) => { sp.put(k, v); sync.schedule(); };
+const comps = () => G.party.COMPANIONS.filter(c => c.id !== run().fields.origin);
+const compById = id => G.party.COMPANIONS.find(c => c.id === id);
+const compLvl = c => cst(c.id).level || party().level;
+const recruited = c => ["party", "camp"].includes(cst(c.id).status);
+const dueComps = () => G.party ? comps().filter(c => recruited(c) && compLvl(c) < party().level) : [];
+const mod = v => Math.floor((v - 10) / 2);
+const fmtMod = m => (m >= 0 ? "+" : "−") + Math.abs(m);
+function avatar(clsId, cls = "") { const C = G.party?.CLASSES[clsId]; return `<span class="ava ${cls}" aria-hidden="true">${C ? INK[C.i] : INK.hero}</span>`; }
+function statsHTML(stats, prio = [], scope) {
+  return `<div class="stats">${G.party.STATS.map(([k, a, l]) => {
+    const v = stats?.[k], pi = prio.indexOf(k);
+    return `<label class="stat${pi === 0 ? " p1" : pi > 0 ? " p2" : ""}"><span class="stat-a">${a}</span><input type="number" inputmode="numeric" min="1" max="30" value="${v ?? ""}" placeholder="–" data-stat="${scope}|${k}" aria-label="${l}"><span class="stat-m">${v != null && v !== "" ? fmtMod(mod(v)) : "&nbsp;"}</span>${pi >= 0 ? `<i class="stat-star" title="Priorité ${pi + 1}">${pi + 1}</i>` : ""}</label>`;
+  }).join("")}</div>`;
+}
+function planHTML(clsId, level, over = {}) {
+  const C = G.party.CLASSES[clsId];
+  if (!C) return `<p class="muted">Choisis une classe pour voir le plan de progression.</p>`;
+  return `<ol class="plan">${C.lv.map((r, i) => {
+    const n = i + 1, state = n <= level ? "past" : n === level + 1 ? "next" : "";
+    const pick = over[n] || r.p || "";
+    return `<li class="lvl ${state}${r.feat ? " feat" : ""}${r.sub ? " sub" : ""}${r.key ? " key" : ""}">
+      <span class="lvl-n">${state === "past" ? UI.check : n}</span>
+      <div class="lvl-b">${state === "next" ? `<span class="next-tag">Prochain niveau · ${n}</span>` : ""}
+        <b>${esc(r.f)}</b>${r.feat ? `<em class="tag t-feat">Don</em>` : ""}${r.key ? `<em class="tag t-key">Palier clé</em>` : ""}
+        ${pick ? `<p class="pick">${esc(pick)}</p>` : ""}
+      </div>
+    </li>`;
+  }).join("")}</ol>`;
+}
+function compRow(c) {
+  const s = cst(c.id), clsId = s.cls || c.cls, C = G.party.CLASSES[clsId], L = compLvl(c), nxt = C?.lv[L], sub = s.sub || c.build.sub;
+  const later = s.status === "todo" && hasRun() && actIdx(c.act) > actIdx(run().act);
+  return `<button type="button" class="comp" data-comp="${c.id}" data-cs="${s.status}">
+    ${avatar(clsId)}
+    <span class="comp-t"><b>${esc(c.n)}</b><small>${esc(c.race)} · ${esc(C?.l || "")}${sub ? ` (${esc(sub)})` : ""}</small>
+      ${s.status === "todo" ? `<small class="where">${later ? `Disponible en ${esc(actLabel(c.act))} · ` : ""}${esc(c.recruit)}</small>` : nxt && L < 12 ? `<small class="nxt">Niv. ${L + 1} : ${esc(nxt.f)}</small>` : ""}</span>
+    <span class="comp-r">${s.status !== "todo" && s.status !== "gone" ? `<em class="lv" aria-label="Niveau ${L}">${L}</em>` : ""}${recruited(c) && L < party().level ? `<span class="pill risk">À monter</span>` : ""}${s.romance ? `<span class="heart" aria-label="Romance">${INK.heart}</span>` : ""}</span>
+  </button>`;
+}
+function vParty() {
+  const P = G.party, pt = party(), r = run(), p = pc(), L = pt.level;
+  const list = comps(), by = st => list.filter(c => cst(c.id).status === st);
+  const inParty = by("party"), due = dueComps(), rep = P.ACT_LEVELS[r.act];
+  const slots = [
+    `<button type="button" class="slot me" data-jtab="perso">${avatar(r.fields.cls)}<b>${esc(p.name || "Toi")}</b><small>Niv. ${p.level}</small></button>`,
+    ...inParty.map(c => `<button type="button" class="slot" data-comp="${c.id}">${avatar(cst(c.id).cls || c.cls)}<b>${esc(c.n)}</b><small>Niv. ${compLvl(c)}</small></button>`),
+    ...Array(Math.max(0, 3 - inParty.length)).fill(`<span class="slot empty">${`<span class="ava">${INK.camp}</span>`}<small>Place libre</small></span>`)
+  ].join("");
+  const grp = (title, xs, empty) => xs.length ? section(`${title} <span class="ph-n">${xs.length}</span>`, `<div class="comps">${xs.map(compRow).join("")}</div>`) : (empty ? section(title, `<p class="muted">${empty}</p>`) : "");
+  return `
+  <section class="check lvl-panel">${corners()}<div class="check-in">
+    <div class="runes" aria-hidden="true"></div>
+    <p class="check-title">Niveau du groupe</p>
+    <p class="check-sub">Toute la compagnie partage l'expérience</p>
+    <div class="plvl"><button type="button" class="btn icon" data-plvl="-1" aria-label="Niveau précédent">${UI.minus}</button><b>${L}</b><button type="button" class="btn icon" data-plvl="1" aria-label="Niveau suivant">${UI.plus}</button></div>
+    <div class="braid" aria-hidden="true"><i></i></div>
+    <p class="check-foot">${L < 12 ? `Niveau ${L + 1} à <b>${fmt(P.XP[L + 1])} XP</b>` : "Niveau maximum atteint"}${rep && hasRun() ? ` · repère ${esc(actLabel(r.act))} : niveaux ${rep[0]} à ${rep[1]}` : ""}</p>
+  </div></section>
+  ${due.length || p.level < L ? `<section class="alert lvlup">${INK.star}<div><h2>Montée de niveau en attente</h2><p>Ouvre chaque fiche pour voir quoi choisir au niveau suivant.</p><div class="chips-open">${p.level < L ? `<button type="button" data-jtab="perso">${esc(p.name || "Ton personnage")} · ${p.level} → ${p.level + 1}</button>` : ""}${due.map(c => `<button type="button" data-comp="${c.id}">${esc(c.n)} · ${compLvl(c)} → ${compLvl(c) + 1}</button>`).join("")}</div></div></section>` : ""}
+  ${section(`Dans ton groupe <span class="ph-n">${inParty.length}/3 compagnons</span>`, `<div class="slots">${slots}</div>`)}
+  ${grp("Au camp", by("camp"))}
+  ${grp("À recruter", by("todo"))}
+  ${grp("Partis ou disparus", by("gone"))}
+  <p class="foot">Caractéristiques et conseils d'après les règles de BG3. Les valeurs « à vérifier » se corrigent en touchant la case.</p>`;
+}
+function vPC() {
+  const P = G.party, p = pc(), r = run(), clsId = r.fields.cls, C = P.CLASSES[clsId];
+  const origin = compById(r.fields.origin);
+  const stats = p.stats || (origin && origin.cls === clsId ? origin.stats : null);
+  const fOrigin = G.run.fields.find(f => f.id === "origin"), fCls = G.run.fields.find(f => f.id === "cls");
+  const chips = (f, dark) => `<div class="opts">${f.o.map(([v, l]) => `<button type="button" data-field="${f.id}" data-val="${v}" aria-pressed="${r.fields[f.id] === v}">${esc(l)}</button>`).join("")}</div>`;
+  return `
+  <section class="parch char"><div class="parch-in">
+    <p class="ink-eyebrow">${esc(G.name)}</p>
+    <h1 class="ink-title">Fiche de personnage</h1>
+    <div class="pc-head">${avatar(clsId, "lg ink")}<label class="ink-field"><span class="ink-lbl">Nom</span><input id="pcName" value="${esc(p.name)}" placeholder="Ton héros, ton héroïne" autocomplete="off"></label></div>
+    ${fOrigin ? `<div class="field"><span class="ink-lbl">Origine</span>${chips(fOrigin)}</div>` : ""}
+    ${!origin ? `<div class="field"><span class="ink-lbl">Race</span><div class="opts">${P.RACES.map(x => `<button type="button" data-pcrace="${esc(x)}" aria-pressed="${p.race === x}">${esc(x)}</button>`).join("")}</div></div>` : ""}
+    ${fCls ? `<div class="field"><span class="ink-lbl">Classe</span>${chips(fCls)}</div>` : ""}
+    ${C ? `<div class="field"><span class="ink-lbl">Sous-classe</span><div class="opts">${C.subs.map(x => `<button type="button" data-pcsub="${esc(x)}" aria-pressed="${p.sub === x}">${esc(x)}</button>`).join("")}</div></div>` : ""}
+    <div class="field"><span class="ink-lbl">Niveau</span><div class="ink-step"><button type="button" data-pclvl="-1" aria-label="Niveau précédent">${UI.minus}</button><b>${p.level}</b><button type="button" data-pclvl="1" aria-label="Niveau suivant">${UI.plus}</button>${p.level < party().level ? `<em>Le groupe est niveau ${party().level}</em>` : ""}</div></div>
+    <div class="field"><span class="ink-lbl">Caractéristiques${C ? ` · priorités ${esc(C.key.map(k => P.STATS.find(z => z[0] === k)[1]).join(" › "))}` : ""}</span>${statsHTML(stats, origin?.build.prio || C?.key || [], "pc")}</div>
+  </div></section>
+  ${origin ? section(`Tu joues ${esc(origin.n)}`, `<div class="build-card"><b>${esc(origin.build.n)}</b>${origin.build.sub ? `<small>Sous-classe conseillée : ${esc(origin.build.sub)}</small>` : ""}<p>${esc(origin.build.d)}</p>${origin.build.alt?.length ? `<ul>${origin.build.alt.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}</div>${origin.tips.length ? `<ul class="tips">${origin.tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}`) : ""}
+  ${C ? section(`Plan de niveaux <span class="ph-n">${esc(C.l)}${p.sub ? " · " + esc(p.sub) : ""}</span>`, planHTML(clsId, p.level, origin && origin.cls === clsId ? origin.build.p : {})) : `<div class="callout">${INK.d20}<span><b>Choisis ta classe</b><small>Le grimoire affichera tes paliers du niveau 1 au niveau 12, avec quoi choisir à chaque fois.</small></span></div>`}
+  ${section("Mes notes", `<textarea id="pcNote" placeholder="Build visé, multiclasse, équipement, choix importants…">${esc(p.note)}</textarea>`)}`;
+}
+function vJournal() {
+  const tabs = G.party ? [["groupe", "Compagnie"], ["perso", "Mon perso"], ["partie", "Partie"]] : [["partie", "Partie"]];
+  if (!tabs.some(t => t[0] === ui.jtab)) ui.jtab = tabs[0][0];
+  const title = { groupe: "Ta compagnie", perso: "Mon personnage", partie: "La partie en cours" }[ui.jtab];
+  return `
+  <div class="hero-top"><p class="eyebrow">Journal de bord</p><h1 class="title sm">${title}</h1></div>
+  ${tabs.length > 1 ? `<div class="seg jseg" role="tablist">${tabs.map(([k, l]) => `<button type="button" role="tab" data-jtab="${k}" aria-selected="${ui.jtab === k}">${l}</button>`).join("")}</div>` : ""}
+  ${ui.jtab === "groupe" ? vParty() : ui.jtab === "perso" ? vPC() : vRunSheet()}`;
+}
+function sheetComp(c) {
+  const P = G.party, s = cst(c.id), pt = party(), clsId = s.cls || c.cls, C = P.CLASSES[clsId], L = compLvl(c);
+  const stats = s.stats || c.stats, sameCls = clsId === c.cls;
+  const trophies = c.trophies.map(byId).filter(Boolean);
+  return `
+  <div class="grab" aria-hidden="true"></div>
+  <button type="button" class="sh-close" data-close aria-label="Fermer">${UI.close}</button>
+  <div class="sh-head">
+    ${avatar(clsId, "lg")}
+    <div>
+      <p class="eyebrow">${esc(c.race)} · ${esc(C.l)}${s.sub || c.build.sub ? " · " + esc(s.sub || c.build.sub) : ""}</p>
+      <h2>${esc(c.n)}</h2>
+      <p class="sh-meta">${esc(PST[s.status])}${s.status !== "todo" ? ` · niveau ${L}` : ""}${s.romance ? " · romance" : ""}</p>
+    </div>
+  </div>
+  <div class="sh-body">
+    <div><span class="lbl">Statut dans la partie</span><div class="seg seg4">${Object.entries(PST).map(([k, l]) => `<button type="button" data-cstat="${k}" aria-pressed="${s.status === k}">${l}</button>`).join("")}</div></div>
+    ${s.status === "todo" ? `<div class="tip parch"><div class="parch-in"><span class="ink-lbl">Où le trouver</span><p>${esc(c.recruit)}</p></div></div>` : ""}
+    <div class="lvrow">
+      <div><span class="lbl">Niveau</span><div class="stepper"><button type="button" data-clvl="-1" aria-label="Niveau précédent">${UI.minus}</button><output class="lv-big">${L}</output><button type="button" data-clvl="1" aria-label="Niveau suivant">${UI.plus}</button></div></div>
+      <p class="lv-info">${L < pt.level ? `<b class="warn">À monter : le groupe est niveau ${pt.level}.</b> Regarde le plan ci-dessous.` : L < 12 ? `Niveau ${L + 1} à ${fmt(P.XP[L + 1])} XP de groupe.` : "Niveau maximum."}</p>
+    </div>
+    <div><span class="lbl">Caractéristiques${!stats ? " · à renseigner" : c.statsCheck && !s.stats ? " · à vérifier en jeu" : ""}</span>${statsHTML(stats, c.build.prio, "comp:" + c.id)}
+      <p class="prio">Priorités : ${c.build.prio.map(k => `<b>${P.STATS.find(z => z[0] === k)[2]}</b>`).join(" › ")}</p></div>
+    <div><span class="lbl">Build conseillé</span><div class="build-card"><b>${esc(c.build.n)}</b>${c.build.sub ? `<small>Sous-classe : ${esc(c.build.sub)}</small>` : ""}<p>${esc(c.build.d)}</p>${c.build.alt?.length ? `<span class="lbl sm">Variantes</span><ul>${c.build.alt.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}</div></div>
+    <div><label class="lbl" for="ccls">Classe (après passage chez Flétriss)</label><select id="ccls" class="select">${Object.entries(P.CLASSES).map(([k, v]) => `<option value="${k}" ${k === clsId ? "selected" : ""}>${v.l}${k === c.cls ? " (d'origine)" : ""}</option>`).join("")}</select></div>
+    <div><span class="lbl">Sous-classe choisie</span><div class="chips">${C.subs.map(x => `<button type="button" class="chip" data-csub="${esc(x)}" aria-pressed="${s.sub === x}">${esc(x)}</button>`).join("")}</div></div>
+    <div><span class="lbl">Plan de niveaux · ${esc(C.l)}</span>${planHTML(clsId, L, sameCls ? c.build.p : {})}</div>
+    <div><span class="lbl">Relation</span><div class="appr">${APPR.map((a, i) => `<button type="button" data-cappr="${i}" aria-pressed="${s.approval === i}">${a}</button>`).join("")}</div>
+      <button type="button" class="toggle" data-cromance aria-pressed="${!!s.romance}"><span>${INK.heart}Romance en cours</span><i></i></button></div>
+    ${c.tips.length ? `<div class="tip parch"><div class="parch-in"><span class="ink-lbl">Conseils du grimoire</span><ul class="ink-list">${c.tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul></div></div>` : ""}
+    ${trophies.length ? `<div><span class="lbl">Trophées liés</span><div class="chips-open">${trophies.map(x => `<button type="button" data-open="${x.id}"${statusOf(x) === "done" ? ' class="is-done"' : ""}><i class="dot m-${x.t}"></i>${esc(x.n)}${statusOf(x) === "done" ? " · obtenu" : ""}</button>`).join("")}</div></div>` : ""}
+    <div><label class="lbl" for="cnote">Mes notes</label><textarea id="cnote" placeholder="Équipement, choix de dialogue, où en est sa quête…">${esc(s.note)}</textarea></div>
+  </div>`;
+}
+function setComp(c, patch) {
+  const s = cst(c.id);
+  putKey("comp:" + c.id, { ...s, ...patch });
+  refresh();
+}
+function setCompStatus(c, st) {
+  const s = cst(c.id);
+  if (st === "party" && s.status !== "party" && comps().filter(z => cst(z.id).status === "party").length >= 3)
+    return toast(`<div class="unlock plain">Groupe complet : envoie d'abord quelqu'un au camp</div>`, 2400);
+  const patch = { status: st };
+  if (!s.level && (st === "party" || st === "camp")) patch.level = party().level;
+  sfx.page();
+  setComp(c, patch);
+}
+function setPartyLevel(d) {
+  const pt = party(), L = Math.max(1, Math.min(12, pt.level + d));
+  if (L === pt.level) return;
+  // les compagnons qui suivaient le groupe gardent leur niveau actuel : ils devront monter
+  comps().filter(c => recruited(c) && !cst(c.id).level).forEach(c => putKey("comp:" + c.id, { ...cst(c.id), level: pt.level }));
+  putKey("party", { ...pt, level: L });
+  if (d > 0) { sfx.success(); burst(); toast(`<div class="unlock">${corners()}<span class="medal m-g">${cup("g")}</span><div><small>Montée de niveau</small><b>Le groupe passe niveau ${L}</b></div></div>`, 2800); }
+  else sfx.tick();
+  refresh();
+}
+function setStat(scope, k, v) {
+  const n = v === "" ? null : Math.max(1, Math.min(30, Math.round(Number(v)) || 0)) || null;
+  if (scope === "pc") {
+    const p = pc(), r = run(), origin = compById(r.fields.origin);
+    const base = p.stats || (origin && origin.cls === r.fields.cls ? origin.stats : null) || {};
+    putKey("pc", { ...p, stats: { ...base, [k]: n } });
+  } else {
+    const c = compById(scope.split(":")[1]), s = cst(c.id);
+    putKey("comp:" + c.id, { ...s, stats: { ...(s.stats || c.stats || {}), [k]: n } });
+  }
+  refresh();
 }
 
 /* ---------- Vue : Chronique ---------- */
@@ -466,7 +647,7 @@ function sheetFilters() {
 let prevView = null;
 function renderView() {
   const v = $("#view"), y = scrollY;
-  v.innerHTML = { home: vHome, list: vList, run: vRun, chron: vChron, more: vMore }[ui.view]();
+  v.innerHTML = { home: vHome, list: vList, run: vJournal, chron: vChron, more: vMore }[ui.view]();
   if (ui.view === "home") setDie("hd", stats().p, stats().roll);
   if (prevView === ui.view) scrollTo(0, y); else { scrollTo(0, 0); prevView = ui.view; }
 }
@@ -476,7 +657,7 @@ function renderSheet() {
   if (!ui.sheet) return;
   if (editingIn(el)) return;
   const st = el.scrollTop;
-  el.innerHTML = ui.sheet.type === "filters" ? sheetFilters() : sheetTrophy(byId(ui.sheet.id));
+  el.innerHTML = ui.sheet.type === "filters" ? sheetFilters() : ui.sheet.type === "comp" ? sheetComp(compById(ui.sheet.id)) : sheetTrophy(byId(ui.sheet.id));
   el.scrollTop = st;
 }
 function refresh() { renderBar(); renderNav(); if (!editingIn($("#view"))) renderView(); else if (ui.view === "list") $("#list").innerHTML = listHTML(); renderSheet(); }
@@ -636,7 +817,7 @@ async function importGame(def) {
 /* ---------- Événements ---------- */
 document.addEventListener("click", e => {
   const t = e.target;
-  const goB = t.closest("[data-go]"); if (goB) return go(goB.dataset.go);
+  const goB = t.closest("[data-go]"); if (goB) { if (goB.dataset.jt) ui.jtab = goB.dataset.jt; return go(goB.dataset.go); }
   const op = t.closest("[data-open]"); if (op && !t.closest("#modal")) return openSheet({ type: "trophy", id: op.dataset.open });
   const se = t.closest("[data-seal]"); if (se) { const x = byId(se.dataset.seal); return setStatus(x, statusOf(x) === "done" ? "todo" : "done"); }
   if (t.closest("[data-close]") || t.id === "scrim") return closeSheet();
@@ -661,6 +842,20 @@ document.addEventListener("click", e => {
   const ff = t.closest("[data-fflag]"); if (ff) { const k = ff.dataset.fflag; ui.flags.has(k) ? ui.flags.delete(k) : ui.flags.add(k); return refresh(); }
   const fd = t.closest("[data-field]"); if (fd) { const r = run(); const v = r.fields[fd.dataset.field] === fd.dataset.val ? "" : fd.dataset.val; sfx.tick(); return setRun({ fields: { ...r.fields, [fd.dataset.field]: v } }); }
   const as = t.closest("[data-actset]"); if (as) return moveAct(as.dataset.actset);
+  const jt = t.closest("[data-jtab]"); if (jt) { ui.jtab = jt.dataset.jtab; sfx.tick(); closeSheet(); return renderView(); }
+  const cp = t.closest("[data-comp]"); if (cp && !t.closest("#sheet")) return openSheet({ type: "comp", id: cp.dataset.comp });
+  const pl = t.closest("[data-plvl]"); if (pl) return setPartyLevel(Number(pl.dataset.plvl));
+  const pr = t.closest("[data-pcrace]"); if (pr) { const p = pc(); sfx.tick(); putKey("pc", { ...p, race: p.race === pr.dataset.pcrace ? "" : pr.dataset.pcrace }); return refresh(); }
+  const ps = t.closest("[data-pcsub]"); if (ps) { const p = pc(); sfx.tick(); putKey("pc", { ...p, sub: p.sub === ps.dataset.pcsub ? "" : ps.dataset.pcsub }); return refresh(); }
+  const pv = t.closest("[data-pclvl]"); if (pv) { const p = pc(), L = Math.max(1, Math.min(12, p.level + Number(pv.dataset.pclvl))); if (L > p.level) sfx.success(); putKey("pc", { ...p, level: L }); return refresh(); }
+  if (ui.sheet?.type === "comp" && t.closest("#sheet")) {
+    const c = compById(ui.sheet.id), s = cst(c.id);
+    const b1 = t.closest("[data-cstat]"); if (b1) return setCompStatus(c, b1.dataset.cstat);
+    const b2 = t.closest("[data-clvl]"); if (b2) { const L = Math.max(1, Math.min(12, compLvl(c) + Number(b2.dataset.clvl))); if (L > compLvl(c)) sfx.success(); else sfx.tick(); return setComp(c, { level: L }); }
+    const b3 = t.closest("[data-csub]"); if (b3) { sfx.tick(); return setComp(c, { sub: s.sub === b3.dataset.csub ? "" : b3.dataset.csub }); }
+    const b4 = t.closest("[data-cappr]"); if (b4) { sfx.tick(); return setComp(c, { approval: Number(b4.dataset.cappr) }); }
+    if (t.closest("[data-cromance]")) { sfx.tick(); return setComp(c, { romance: !s.romance }); }
+  }
   const gm = t.closest("[data-game]"); if (gm && gm.dataset.game !== G.id) { useGame(gm.dataset.game); sfx.page(); return refresh(); }
   // fiche trophée
   if (ui.sheet?.type === "trophy" && t.closest("#sheet")) {
@@ -675,6 +870,8 @@ document.addEventListener("click", e => {
 });
 document.addEventListener("input", e => {
   if (e.target.id === "q") { ui.qRaw = e.target.value; ui.q = norm(e.target.value.trim()); $("#list").innerHTML = listHTML(); }
+  if (e.target.id === "cnote") { const id = ui.sheet.id, v = e.target.value; clearTimeout(noteT); noteT = setTimeout(() => putKey("comp:" + id, { ...cst(id), note: v }), 600); }
+  if (e.target.id === "pcNote") { const v = e.target.value; clearTimeout(noteT); noteT = setTimeout(() => putKey("pc", { ...pc(), note: v }), 600); }
   if (e.target.id === "note") { const x = byId(ui.sheet.id), v = e.target.value; clearTimeout(noteT); noteT = setTimeout(() => save(x, { ...ts(x.id), note: v }), 600); }
 });
 let noteT;
@@ -682,6 +879,9 @@ document.addEventListener("change", async e => {
   const t = e.target;
   if (t.id === "prog") return setProgress(byId(ui.sheet.id), t.value);
   if (t.id === "runName") return setRun({ name: t.value.trim() });
+  if (t.id === "pcName") { putKey("pc", { ...pc(), name: t.value.trim() }); return refresh(); }
+  if (t.dataset.stat) { const [scope, k] = t.dataset.stat.split("|"); return setStat(scope, k, t.value); }
+  if (t.id === "ccls") { const c = compById(ui.sheet.id); return setComp(c, { cls: t.value === c.cls ? "" : t.value, sub: "" }); }
   if (t.id === "doneAt" && t.value) { const x = byId(ui.sheet.id); const [y, m, d] = t.value.split("-").map(Number); save(x, { ...ts(x.id), doneAt: new Date(y, m - 1, d, 12).getTime() }); return refresh(); }
   try {
     if (t.id === "backupFile") { const d = await readFile(t); if (d) await importBackup(d); }

@@ -1,9 +1,9 @@
 /* Service worker : l'app fonctionne hors ligne. Incrémente VERSION à chaque mise en ligne. */
-const VERSION = "grimoire-v2.0.0";
+const VERSION = "grimoire-v2.1.0";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest", "./config.js", "./css/app.css",
   "./js/app.js", "./js/store.js", "./js/sync.js", "./js/games.js", "./js/icons.js", "./js/die.js",
-  "./js/sound.js", "./js/share.js", "./js/motes.js", "./games/bg3.js",
+  "./js/sound.js", "./js/share.js", "./js/motes.js", "./games/bg3.js", "./games/bg3-party.js",
   "./vendor/supabase.js", "./vendor/591.supabase.js",
   "./icons/icon.svg", "./icons/icon-192.png", "./icons/apple-touch-icon.png"
 ];
