@@ -7,7 +7,7 @@ import { sfx, setSound } from "./sound.js";
 import { makeCard, shareBlob } from "./share.js";
 import { initMotes, burst } from "./motes.js";
 
-const VERSION = "3.0.0";
+const VERSION = "3.1.0";
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = n => Number(n).toLocaleString("fr-FR");
@@ -203,7 +203,8 @@ function renderBar() {
     </button>
     <span class="bar-r"><button type="button" class="me-btn" data-go="more" aria-label="Mon profil">${meAvatar("xs")}</button><button type="button" class="sync" data-go="more" data-s="${sync.status}" aria-label="État de la synchronisation : ${SYNC_TXT[sync.status]}"><i></i><span>${SYNC_TXT[sync.status]}</span></button></span>`;
 }
-const NAV = [["home", "Grimoire", "book"], ["list", "Registre", "map"], ["run", "Journal", "hero"], ["chron", "Chronique", "hourglass"], ["more", "Plus", "star"]];
+const VIEWS = ["home", "live", "list", "run", "chron", "more"];
+const NAV = [["home", "Grimoire", "book"], ["live", "En jeu", "camp"], ["list", "Registre", "map"], ["run", "Journal", "hero"], ["more", "Plus", "star"]];
 function renderNav() {
   $("#nav").innerHTML = NAV.map(([k, l, i]) => `<button type="button" data-go="${k}" ${ui.view === k ? 'aria-current="page"' : ""}><span class="nav-ico">${INK[i]}</span><span>${l}</span>${k === "run" && ((hasRun() && G.base.some(x => atRisk(x))) || dueComps().length) ? `<em aria-label="À voir"></em>` : ""}</button>`).join("");
 }
@@ -242,8 +243,10 @@ function vHome() {
     <button type="button" class="btn primary" data-act="roll"><span class="btn-ico">${INK.d20}</span>Lancer le dé du destin</button>
     <button type="button" class="btn icon" data-act="share" aria-label="Partager ma progression">${UI.share}</button>
   </div>
+  <button type="button" class="link center" data-go="chron">${INK.hourglass}Voir ma chronique</button>
   </div><div class="col-b">
   ${alert}
+  ${G.zones && run().zone ? (z => z ? `<button type="button" class="callout here" data-go="live"><span class="callout-ico">${INK.camp}</span><span><b>En jeu · ${esc(z.n)}</b><small>${zoneLeft(z)} ${zoneLeft(z) > 1 ? "choses" : "chose"} à faire ici. Touche pour ouvrir le guide du lieu.</small></span>${UI.arrow}</button>` : "")(G.zones.find(z => z.id === run().zone)) : ""}
   ${G.party && dueComps().length ? `<button type="button" class="callout" data-go="run" data-jt="groupe"><span class="callout-ico">${INK.star}</span><span><b>Montée de niveau en attente</b><small>${dueComps().map(c => esc(c.n)).join(", ")} : le groupe est niveau ${party().level}. Vois quoi choisir.</small></span>${UI.arrow}</button>` : ""}
   ${hasRun() ? sectionFold("now", `Faisable maintenant <span class="ph-n">${esc(actLabel(r.act))} · ${now.length}</span>`, now.length ? `<div class="minis">${now.map(mini).join("")}</div>` : `<p class="muted">Rien d'autre à faire dans cet acte pour ta partie actuelle. Avance d'un acte dans ta fiche de partie.</p>`) : ""}
   ${vRoute(r)}
@@ -377,6 +380,7 @@ async function newRun() {
   if (G.party) {
     G.party.COMPANIONS.forEach(c => { if (sp.get("comp:" + c.id)) sp.put("comp:" + c.id, { note: cst(c.id).note }); });
     sp.put("pc", { note: pc().note });
+    (G.zones || []).forEach(z => { if (sp.get("zone:" + z.id)) sp.put("zone:" + z.id, { d: {} }); });
     sp.put("party", { level: 1 });
   }
   sp.put("run", { name: "", fields: {}, act: G.acts[0]?.id || "any", startedAt: Date.now(), archive: [...(r.archive || []), { name: r.name, fields: r.fields, act: r.act, startedAt: r.startedAt, endedAt: Date.now() }] });
@@ -586,6 +590,50 @@ function setStat(scope, k, v) {
   refresh();
 }
 
+/* ---------- Vue : En jeu (guide lieu par lieu) ---------- */
+const zst = id => ({ d: {}, ...(sp.get("zone:" + id) || {}) });
+const zoneLeft = z => z.todo.filter((_, i) => !zst(z.id).d[i]).length;
+function zoneBtn(z) {
+  const left = zoneLeft(z), tro = z.trophies.map(byId).filter(x => x && statusOf(x) !== "done").length;
+  return `<button type="button" class="zone-btn${left ? "" : " clear"}" data-zone="${z.id}">
+    <span class="zone-ico">${INK.camp}</span>
+    <span class="zone-t"><b>${esc(z.n)}</b><small>${left ? `${left} à faire` : "Terminé"}${tro ? ` · ${tro} trophée${tro > 1 ? "s" : ""}` : ""}</small></span>${UI.arrow}</button>`;
+}
+function vLive() {
+  if (!G.zones) return `<div class="empty"><b>Pas de guide pour ce jeu</b>Le mode « En jeu » existe pour Baldur's Gate 3.</div>`;
+  const r = run(), z = G.zones.find(x => x.id === r.zone);
+  if (!z) {
+    const here = G.zones.filter(x => x.a === r.act), others = G.acts.filter(a => a.id !== r.act && G.zones.some(x => x.a === a.id));
+    return `
+    <div class="hero-top"><p class="eyebrow">En jeu · ${esc(actLabel(r.act))}</p><h1 class="title sm">Où es-tu ?</h1></div>
+    <p class="lead">Choisis le lieu où tu joues : le grimoire te dit quoi faire, ce qu'il ne faut pas rater et quand sauvegarder.</p>
+    ${!hasRun() ? `<button type="button" class="callout" data-go="run" data-jt="partie"><span class="callout-ico">${INK.hero}</span><span><b>Indique ton acte</b><small>Remplis ta fiche de partie pour voir d'abord les lieux de ton acte.</small></span>${UI.arrow}</button>` : ""}
+    <div class="zones">${here.map(zoneBtn).join("")}</div>
+    ${others.map(a => fold("z-" + a.id, esc(a.l), `<div class="zones">${G.zones.filter(x => x.a === a.id).map(zoneBtn).join("")}</div>`)).join("")}`;
+  }
+  const st = zst(z.id), left = zoneLeft(z), i = G.zones.indexOf(z), next = G.zones[i + 1];
+  const tro = z.trophies.map(byId).filter(Boolean), comps = z.comps.map(compById).filter(Boolean);
+  return `
+  <div class="hero-top"><p class="eyebrow">En jeu · ${esc(actLabel(z.a))}</p><h1 class="title sm">${esc(z.n)}</h1><p class="en">${esc(z.en)}</p></div>
+  <button type="button" class="link center" data-zone="">${UI.arrow}Changer de lieu</button>
+  <div class="cols"><div class="col-a">
+  ${section(`À faire ici <span class="ph-n">${left ? `${z.todo.length - left} sur ${z.todo.length} faits` : "tout est fait"}</span>`, `<ul class="ztodo">${z.todo.map((t, k) => `<li><button type="button" data-ztodo="${k}" aria-pressed="${!!st.d[k]}"><i>${UI.check}</i><span>${esc(t)}</span></button></li>`).join("")}</ul>`)}
+  ${z.miss.length ? `<section class="alert">${UI.warn}<div><h2>Avant de partir</h2><ul class="miss">${z.miss.map(m => `<li>${esc(m)}</li>`).join("")}</ul></div></section>` : ""}
+  <div class="tip parch save"><div class="parch-in"><span class="ink-lbl">Sauvegarde conseillée</span><p>${esc(z.save)}</p></div></div>
+  </div><div class="col-b">
+  ${tro.length ? section(`Trophées du coin <span class="ph-n">${tro.filter(x => statusOf(x) === "done").length}/${tro.length}</span>`, `<div class="stack">${tro.map(card).join("")}</div>`) : ""}
+  ${comps.length ? section("Compagnons du coin", `<div class="comps">${comps.map(compRow).join("")}</div>`) : ""}
+  ${next ? `<button type="button" class="btn next-zone" data-zone="${next.id}">Lieu suivant : ${esc(next.n)}${UI.arrow}</button>` : ""}
+  </div></div>`;
+}
+async function setZone(id) {
+  const z = G.zones.find(x => x.id === id);
+  if (z && actIdx(z.a) > actIdx(run().act)) { await moveAct(z.a); if (run().act !== z.a) return; }
+  sfx.page();
+  setRun({ zone: id });
+  scrollTo(0, 0);
+}
+
 /* ---------- Vue : Chronique ---------- */
 function vChron() {
   const done = G.base.filter(x => statusOf(x) === "done" && x.t !== "p");
@@ -599,6 +647,7 @@ function vChron() {
   const entry = x => `<li><button type="button" data-open="${x.id}">${medal(x.t, "sm")}<span><b>${esc(x.n)}</b><small>${ts(x.id).doneAt ? day(ts(x.id).doneAt) : esc(G.cats[x.c].l)}</small></span></button></li>`;
   const plat = statusOf(G.plat) === "done";
   return `
+  <button type="button" class="link back" data-go="home">${UI.arrow}Retour au grimoire</button>
   <div class="hero-top"><p class="eyebrow">Chronique</p><h1 class="title sm">Le chemin du platine</h1></div>
   <div class="cols"><div class="col-a">
   ${section("Progression dans le temps", chart(dated, undated.length))}
@@ -655,7 +704,7 @@ function vMore() {
     <button type="button" class="btn" data-act="profile">Modifier mon profil</button>`)}
   ${section("Compte & synchronisation", accountHTML())}
   ${section("Confort", `${comfortHTML()}
-    <div><span class="lbl">Ouvrir l'app sur</span><div class="chips">${[["home", "Grimoire"], ["list", "Registre"], ["run", "Journal"]].map(([k, l]) => `<button type="button" class="chip" data-start="${k}" aria-pressed="${m.start === k}">${l}</button>`).join("")}</div></div>`)}
+    <div><span class="lbl">Ouvrir l'app sur</span><div class="chips">${[["home", "Grimoire"], ["live", "En jeu"], ["list", "Registre"], ["run", "Journal"]].map(([k, l]) => `<button type="button" class="chip" data-start="${k}" aria-pressed="${m.start === k}">${l}</button>`).join("")}</div></div>`)}
   ${section("Sauvegarde", `<p class="muted">Exporte ta progression (trophées, notes, fiche de partie) dans un fichier, pour la garder ou la restaurer.</p><div class="row2"><button type="button" class="btn" data-act="export">${UI.download}Exporter</button><label class="btn">${UI.upload}Restaurer<input type="file" accept="application/json,.json" id="backupFile" hidden></label></div>
     ${G.seed?.done ? `<button type="button" class="link" data-act="seed">Reprendre la progression de l'ancienne page (${G.seed.done.length} trophées)</button>` : ""}`)}
   ${section("Partage", `<p class="muted">Une carte au format portrait avec ton d20, ta progression et tes médailles.</p><button type="button" class="btn" data-act="share">${UI.share}Créer ma carte de progression</button>`)}
@@ -798,7 +847,7 @@ function sheetFilters() {
 let prevView = null;
 function renderView() {
   const v = $("#view"), y = scrollY;
-  v.innerHTML = { home: vHome, list: vList, run: vJournal, chron: vChron, more: vMore }[ui.view]();
+  v.innerHTML = { home: vHome, live: vLive, list: vList, run: vJournal, chron: vChron, more: vMore }[ui.view]();
   if (ui.view === "home") setDie("hd", stats().p, stats().roll);
   if (prevView === ui.view) scrollTo(0, y); else { scrollTo(0, 0); prevView = ui.view; }
 }
@@ -1015,6 +1064,8 @@ document.addEventListener("click", e => {
   const as = t.closest("[data-actset]"); if (as) return moveAct(as.dataset.actset);
   const idl = t.closest("[data-imgdel]"); if (idl) { putKey("img:" + idl.dataset.imgdel, { src: "" }); sfx.tick(); return refresh(); }
   const pa = t.closest("[data-planall]"); if (pa) { const ol = pa.previousElementSibling, c = ol.classList.toggle("compact"); pa.textContent = c ? "Voir les 12 niveaux" : "Afficher seulement les prochains niveaux"; return; }
+  const zb = t.closest("[data-zone]"); if (zb && !t.closest("#sheet")) return setZone(zb.dataset.zone);
+  const zt = t.closest("[data-ztodo]"); if (zt) { const id = run().zone, s2 = zst(id), k = zt.dataset.ztodo; s2.d = { ...s2.d, [k]: !s2.d[k] }; putKey("zone:" + id, s2); s2.d[k] ? sfx.stamp() : sfx.tick(); return refresh(); }
   const jt = t.closest("[data-jtab]"); if (jt) { ui.jtab = jt.dataset.jtab; sfx.tick(); closeSheet(); return renderView(); }
   const cp = t.closest("[data-comp]"); if (cp && !t.closest("#sheet")) return openSheet({ type: "comp", id: cp.dataset.comp });
   const pl = t.closest("[data-plvl]"); if (pl) return setPartyLevel(Number(pl.dataset.plvl));
@@ -1112,7 +1163,7 @@ addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = 
 /* ---------- Démarrage ---------- */
 useGame(prefs.game);
 const start = location.hash.slice(1);
-ui.view = NAV.some(n => n[0] === start) ? start : (NAV.some(n => n[0] === me().start) ? me().start : "home");
+ui.view = VIEWS.includes(start) ? start : (VIEWS.includes(me().start) ? me().start : "home");
 renderBar(); renderNav(); renderView();
 initMotes($("#motes"));
 sync.init({

@@ -735,3 +735,34 @@ textarea{width:100%;min-height:96px;resize:vertical;border:1px solid var(--line-
 body.text-l main,body.text-l .sheet>*,body.text-l .modal-in>*{zoom:1.12}
 body.text-xl main,body.text-xl .sheet>*,body.text-xl .modal-in>*{zoom:1.25}
 body.text-l .nav button,body.text-xl .nav button{font-size:10.5px}
+
+/* ---------- En jeu ---------- */
+.lead{margin:0;text-align:center;color:var(--muted);font-size:16.5px;max-width:46ch;justify-self:center}
+.en{margin:2px 0 0;color:var(--faint);font-style:italic;font-size:15px}
+.link{display:inline-flex;align-items:center;gap:8px}
+.link svg{width:18px;height:18px;flex:none}
+.link.center{justify-self:center}
+.link.back svg,.link[data-zone=""] svg{transform:rotate(180deg)}
+.zones{display:grid;gap:10px}
+.zone-btn{display:grid;grid-template-columns:44px minmax(0,1fr) 20px;gap:14px;align-items:center;text-align:left;min-height:68px;padding:10px 14px;border-radius:14px;border:1px solid var(--line-2);background:linear-gradient(180deg,var(--panel-2),var(--panel))}
+.zone-btn>svg{width:20px;height:20px;color:var(--bronze)}
+.zone-ico{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--parch-ink);background:radial-gradient(circle at 38% 30%,#F6E7C2,#D9BC83 70%,#A9824B);border:1.5px solid var(--bronze)}
+.zone-ico svg{width:62%;height:62%}
+.zone-t b{display:block;font-family:var(--f-cap);font-weight:700;font-size:16px;color:var(--gold-hi)}
+.zone-t small{display:block;color:var(--muted);font-size:15px}
+.zone-btn.clear{opacity:.6}
+.zone-btn.clear .zone-ico{filter:grayscale(.6)}
+.ztodo{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.ztodo button{display:grid;grid-template-columns:28px minmax(0,1fr);gap:12px;align-items:start;width:100%;text-align:left;padding:8px 2px;font-size:17px;line-height:1.45;min-height:48px}
+.ztodo i{width:26px;height:26px;border-radius:7px;border:1.5px solid var(--bronze);display:grid;place-items:center;margin-top:1px}
+.ztodo i svg{width:16px;height:16px;opacity:0;color:#1A1207}
+.ztodo [aria-pressed="true"] i{background:linear-gradient(180deg,#E3AE72,#B07A45);border-color:var(--bronze-hi)}
+.ztodo [aria-pressed="true"] i svg{opacity:1}
+.ztodo [aria-pressed="true"] span{color:var(--faint);text-decoration:line-through;text-decoration-color:rgba(176,122,69,.6)}
+.miss{margin:6px 0 0;padding-left:18px;display:grid;gap:8px;font-size:16px;color:var(--ink)}
+.tip.save p{font-size:16.5px}
+.next-zone{width:100%;justify-content:space-between}
+.callout.here{border-color:rgba(227,181,79,.55);background:linear-gradient(135deg,rgba(227,181,79,.16),rgba(227,181,79,.03))}
+.callout.here .callout-ico{color:var(--gold-hi)}
+.callout.here b{color:var(--gold-hi)}
+.callout.here>svg{color:var(--gold)}

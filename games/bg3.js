@@ -2,6 +2,7 @@
    Même format que games/modele-jeu.json : pour ajouter un jeu, copie ce modèle
    et importe-le depuis l'onglet « Plus » de l'app, ou ajoute un fichier ici. */
 import * as PARTY from "./bg3-party.js";
+import { ZONES } from "./bg3-zones.js";
 
 const CLASSES = ["Barbare","Barde","Clerc","Druide","Ensorceleur","Guerrier","Magicien","Moine","Occultiste","Paladin","Rôdeur","Roublard"];
 
@@ -33,6 +34,7 @@ export default {
   ],
   anyLabel: "Toute la partie",
   party: PARTY,
+  zones: ZONES,
   run: {
     fields: [
       { id: "origin", l: "Origine", o: [["tav","Tav"],["durge","Sombres Pulsions"],["astarion","Astarion"],["gale","Gale"],["karlach","Karlach"],["laezel","Lae'zel"],["ombrecoeur","Ombrecœur"],["wyll","Wyll"]] },

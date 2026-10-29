@@ -11,6 +11,7 @@ Installable sur téléphone, fonctionne hors ligne, synchronisée entre appareil
 - **Fiche détaillée** : statut, compteur, **checklist** (étapes prévues + étapes perso), astuce, date d'obtention modifiable, liens soluces/vidéos, notes.
 - **Journal de bord · Compagnie** : niveau du groupe (seuils d'XP, repères par acte), qui est dans ton groupe (3 places), au camp, à recruter (où les trouver) ou parti. Rappel automatique quand un compagnon doit monter de niveau.
 - **Fiche compagnon** (10 compagnons) : caractéristiques modifiables avec modificateurs et priorités, build conseillé et variantes, classe après respécialisation, sous-classe, **plan de niveaux 1 → 12** (ce que la classe gagne, dons, sorts clés, prochain niveau mis en avant), relation, romance, conseils, trophées liés, notes.
+- **En jeu** : guide lieu par lieu (18 lieux, du Nautiloïde à la Ville haute). Pour chaque lieu : quoi faire, à cocher ; ce qu'il ne faut pas rater avant de partir ; la sauvegarde conseillée ; les trophées et compagnons du coin. Choisir un lieu d'un acte suivant déclenche l'alerte de point de non-retour.
 - **Comptes et profil** : inscription, connexion, mot de passe oublié ou à changer, pseudo, photo, plateforme et réglages de confort (mode calme, taille du texte, sons, page d'ouverture) synchronisés avec le compte. Un parcours d'accueil en 3 étapes à la première ouverture. Sur un appareil partagé, changer de compte repart d'un appareil vierge : les données ne se mélangent jamais.
 - **Portraits** : touche le médaillon d'un compagnon ou de ton personnage pour y mettre ta propre image (capture d'écran du jeu par exemple). Elle est recadrée, réduite à 192 px et synchronisée avec ton compte.
 - **Journal de bord · Mon perso** : nom, origine, race, classe, sous-classe, niveau, caractéristiques et le même plan de niveaux pour ta classe (avec le guide du compagnon si tu joues une origine).
@@ -73,6 +74,7 @@ js/sound.js           sons
 js/motes.js           braises en fond
 games/bg3.js          données Baldur's Gate 3 (trophées)
 games/bg3-party.js    classes, compagnons, seuils d'XP
+games/bg3-zones.js    guide « En jeu », lieu par lieu
 supabase/schema.sql   table et règles d'accès
 ```
 
