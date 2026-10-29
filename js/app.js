@@ -7,7 +7,7 @@ import { sfx, setSound } from "./sound.js";
 import { makeCard, shareBlob } from "./share.js";
 import { initMotes, burst } from "./motes.js";
 
-const VERSION = "2.2.0";
+const VERSION = "2.3.0";
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = n => Number(n).toLocaleString("fr-FR");
@@ -169,7 +169,7 @@ function mini(x) {
 const section = (title, body, extra = "") => `<section class="panel ${extra}">${corners()}<h2 class="ph">${title}</h2>${body}</section>`;
 
 /* ---------- En-tête & navigation ---------- */
-const SYNC_TXT = { off: "Local", connecting: "Connexion…", signedout: "Non connecté·e", syncing: "Synchro…", ok: "Synchronisé", offline: "Hors ligne", error: "Erreur synchro" };
+const SYNC_TXT = { off: "Local", connecting: "Connexion…", signedout: "Connexion", syncing: "Synchro…", ok: "Synchronisé", offline: "Hors ligne", error: "Erreur synchro" };
 function renderBar() {
   $("#bar").innerHTML = `
     <button type="button" class="brand" data-go="home" aria-label="Accueil">
@@ -198,6 +198,7 @@ function vHome() {
     <p class="eyebrow">Registre des hauts faits${G.player ? " · " + esc(G.player) : ""}</p>
     <h1 class="title">${esc(G.platTitle)}</h1>
   </div>
+  <div class="cols"><div class="col-a">
   <section class="check" aria-label="Progression vers le platine">
     ${corners()}
     <div class="check-in">
@@ -216,12 +217,13 @@ function vHome() {
     <button type="button" class="btn primary" data-act="roll"><span class="btn-ico">${INK.d20}</span>Lancer le dé du destin</button>
     <button type="button" class="btn icon" data-act="share" aria-label="Partager ma progression">${UI.share}</button>
   </div>
+  </div><div class="col-b">
   ${alert}
   ${G.party && dueComps().length ? `<button type="button" class="callout" data-go="run" data-jt="groupe"><span class="callout-ico">${INK.star}</span><span><b>Montée de niveau en attente</b><small>${dueComps().map(c => esc(c.n)).join(", ")} : le groupe est niveau ${party().level}. Vois quoi choisir.</small></span>${UI.arrow}</button>` : ""}
   ${hasRun() ? section(`Faisable maintenant <span class="ph-n">${esc(actLabel(r.act))} · ${now.length}</span>`, now.length ? `<div class="minis">${now.map(mini).join("")}</div>` : `<p class="muted">Rien d'autre à faire dans cet acte pour ta partie actuelle. Avance d'un acte dans ta fiche de partie.</p>`) : ""}
   ${vRoute(r)}
   ${section("Bibliothèque des guides", `<div class="guides">${G.guides.map(g => `<a href="${esc(g.u)}" target="_blank" rel="noopener"><b>${esc(g.n)}<span>${esc(g.lang || "")}</span></b><small>${esc(g.d || "")}</small></a>`).join("")}</div>`, "collapsible")}
-  `;
+  </div></div>`;
 }
 function vRoute(r) {
   const left = G.base.filter(x => x.t !== "p" && statusOf(x) !== "done");
@@ -303,7 +305,7 @@ function vRunSheet() {
   const track = G.acts.map((a, i) => `<button type="button" class="stop${a.id === r.act ? " on" : ""}${i < actIdx(r.act) ? " past" : ""}" data-actset="${a.id}"><i></i><span>${esc(a.l)}</span></button>`).join("");
   const now = G.base.filter(x => doable(x, r)), lost = G.base.filter(x => missed(x, r)), risk = G.base.filter(x => atRisk(x, r));
   const onceLeft = G.base.filter(x => once(x) && statusOf(x) !== "done");
-  return `
+  return `<div class="cols"><div class="col-a">
   <section class="parch char">
     <div class="parch-in">
       <p class="ink-eyebrow">${esc(G.name)}</p>
@@ -314,12 +316,12 @@ function vRunSheet() {
       ${G.acts.length ? `<div class="field"><span class="ink-lbl">Où en es-tu ?</span><div class="track">${track}</div></div>` : ""}
       ${!started ? `<button type="button" class="ink-btn" data-act="startrun">Ouvrir la fiche</button>` : ""}
     </div>
-  </section>
+  </section></div><div class="col-b">
   ${started && risk.length ? `<section class="alert">${UI.warn}<div><h2>À faire avant de quitter ${esc(actLabel(r.act))}</h2><p>${esc(G.acts[actIdx(r.act)]?.close || "")}</p><div class="chips-open">${risk.map(x => `<button type="button" data-open="${x.id}"><i class="dot m-${x.t}"></i>${esc(x.n)}</button>`).join("")}</div></div></section>` : ""}
   ${section(`Faisable maintenant <span class="ph-n">${now.length}</span>`, now.length ? `<div class="stack">${now.map(card).join("")}</div>` : `<p class="muted">Rien pour l'instant avec cette fiche.</p>`)}
   ${lost.length ? section(`Manqués dans cette partie <span class="ph-n">${lost.length}</span>`, `<p class="muted">Ces actes sont derrière toi : ce sera pour une prochaine partie.</p><div class="chips-open">${lost.map(x => `<button type="button" data-open="${x.id}" class="is-missed"><i class="dot m-${x.t}"></i>${esc(x.n)}</button>`).join("")}</div>`) : ""}
   ${started ? section("Nouvelle partie", `<p class="muted">Archive cette fiche et repars de zéro. Les compteurs « 1 partie » non obtenus (${onceLeft.length}) seront remis à zéro ; tes trophées obtenus restent scellés.</p><button type="button" class="btn" data-act="newrun">${UI.plus}Commencer une nouvelle partie</button>
-    ${r.archive?.length ? `<h3 class="sub-h">Parties précédentes</h3><ul class="archive">${r.archive.slice().reverse().map(a => `<li><b>${esc(a.name || "Partie sans nom")}</b><small>${G.run.fields.map(f => f.o.find(o => o[0] === a.fields?.[f.id])?.[1]).filter(Boolean).map(esc).join(" · ")}${a.fields && Object.keys(a.fields).length ? " · " : ""}${day(a.startedAt)} → ${day(a.endedAt)} · arrêtée en ${esc(actLabel(a.act))}</small></li>`).join("")}</ul>` : ""}`) : ""}`;
+    ${r.archive?.length ? `<h3 class="sub-h">Parties précédentes</h3><ul class="archive">${r.archive.slice().reverse().map(a => `<li><b>${esc(a.name || "Partie sans nom")}</b><small>${G.run.fields.map(f => f.o.find(o => o[0] === a.fields?.[f.id])?.[1]).filter(Boolean).map(esc).join(" · ")}${a.fields && Object.keys(a.fields).length ? " · " : ""}${day(a.startedAt)} → ${day(a.endedAt)} · arrêtée en ${esc(actLabel(a.act))}</small></li>`).join("")}</ul>` : ""}`) : ""}</div></div>`;
 }
 async function moveAct(to) {
   const r = run(), from = actIdx(r.act), ti = actIdx(to);
@@ -437,7 +439,7 @@ function vParty() {
     ...Array(Math.max(0, 3 - inParty.length)).fill(`<span class="slot empty">${`<span class="ava">${INK.camp}</span>`}<small>Place libre</small></span>`)
   ].join("");
   const grp = (title, xs, empty) => xs.length ? section(`${title} <span class="ph-n">${xs.length}</span>`, `<div class="comps">${xs.map(compRow).join("")}</div>`) : (empty ? section(title, `<p class="muted">${empty}</p>`) : "");
-  return `
+  return `<div class="cols"><div class="col-a">
   <section class="check lvl-panel">${corners()}<div class="check-in">
     <div class="runes" aria-hidden="true"></div>
     <p class="check-title">Niveau du groupe</p>
@@ -448,10 +450,11 @@ function vParty() {
   </div></section>
   ${due.length || p.level < L ? `<section class="alert lvlup">${INK.star}<div><h2>Montée de niveau en attente</h2><p>Ouvre chaque fiche pour voir quoi choisir au niveau suivant.</p><div class="chips-open">${p.level < L ? `<button type="button" data-jtab="perso">${esc(p.name || "Ton personnage")} · ${p.level} → ${p.level + 1}</button>` : ""}${due.map(c => `<button type="button" data-comp="${c.id}">${esc(c.n)} · ${compLvl(c)} → ${compLvl(c) + 1}</button>`).join("")}</div></div></section>` : ""}
   ${section(`Dans ton groupe <span class="ph-n">${inParty.length}/3 compagnons</span>`, `<div class="slots">${slots}</div>`)}
+  </div><div class="col-b">
   ${grp("Au camp", by("camp"))}
   ${grp("À recruter", by("todo"))}
   ${grp("Partis ou disparus", by("gone"))}
-  <p class="foot">Caractéristiques et conseils d'après les règles de BG3. Les valeurs « à vérifier » se corrigent en touchant la case.</p>`;
+  <p class="foot">Caractéristiques et conseils d'après les règles de BG3. Les valeurs « à vérifier » se corrigent en touchant la case.</p></div></div>`;
 }
 function vPC() {
   const P = G.party, p = pc(), r = run(), clsId = r.fields.cls, C = P.CLASSES[clsId];
@@ -459,7 +462,7 @@ function vPC() {
   const stats = p.stats || (origin && origin.cls === clsId ? origin.stats : null);
   const fOrigin = G.run.fields.find(f => f.id === "origin"), fCls = G.run.fields.find(f => f.id === "cls");
   const chips = (f, dark) => `<div class="opts">${f.o.map(([v, l]) => `<button type="button" data-field="${f.id}" data-val="${v}" aria-pressed="${r.fields[f.id] === v}">${esc(l)}</button>`).join("")}</div>`;
-  return `
+  return `<div class="cols"><div class="col-a">
   <section class="parch char"><div class="parch-in">
     <p class="ink-eyebrow">${esc(G.name)}</p>
     <h1 class="ink-title">Fiche de personnage</h1>
@@ -470,10 +473,10 @@ function vPC() {
     ${C ? `<div class="field"><span class="ink-lbl">Sous-classe</span><div class="opts">${C.subs.map(x => `<button type="button" data-pcsub="${esc(x)}" aria-pressed="${p.sub === x}">${esc(x)}</button>`).join("")}</div></div>` : ""}
     <div class="field"><span class="ink-lbl">Niveau</span><div class="ink-step"><button type="button" data-pclvl="-1" aria-label="Niveau précédent">${UI.minus}</button><b>${p.level}</b><button type="button" data-pclvl="1" aria-label="Niveau suivant">${UI.plus}</button>${p.level < party().level ? `<em>Le groupe est niveau ${party().level}</em>` : ""}</div></div>
     <div class="field"><span class="ink-lbl">Caractéristiques${C ? ` · priorités ${esc(C.key.map(k => P.STATS.find(z => z[0] === k)[1]).join(" › "))}` : ""}</span>${statsHTML(stats, origin?.build.prio || C?.key || [], "pc")}</div>
-  </div></section>
+  </div></section></div><div class="col-b">
   ${origin ? section(`Tu joues ${esc(origin.n)}`, `<div class="build-card"><b>${esc(origin.build.n)}</b>${origin.build.sub ? `<small>Sous-classe conseillée : ${esc(origin.build.sub)}</small>` : ""}<p>${esc(origin.build.d)}</p>${origin.build.alt?.length ? `<ul>${origin.build.alt.map(a => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}</div>${origin.tips.length ? `<ul class="tips">${origin.tips.map(t => `<li>${esc(t)}</li>`).join("")}</ul>` : ""}`) : ""}
   ${C ? section(`Plan de niveaux <span class="ph-n">${esc(C.l)}${p.sub ? " · " + esc(p.sub) : ""}</span>`, planHTML(clsId, p.level, origin && origin.cls === clsId ? origin.build.p : {})) : `<div class="callout">${INK.d20}<span><b>Choisis ta classe</b><small>Le grimoire affichera tes paliers du niveau 1 au niveau 12, avec quoi choisir à chaque fois.</small></span></div>`}
-  ${section("Mes notes", `<textarea id="pcNote" placeholder="Build visé, multiclasse, équipement, choix importants…">${esc(p.note)}</textarea>`)}`;
+  ${section("Mes notes", `<textarea id="pcNote" placeholder="Build visé, multiclasse, équipement, choix importants…">${esc(p.note)}</textarea>`)}</div></div>`;
 }
 function vJournal() {
   const tabs = G.party ? [["groupe", "Compagnie"], ["perso", "Mon perso"], ["partie", "Partie"]] : [["partie", "Partie"]];
@@ -570,10 +573,12 @@ function vChron() {
   const plat = statusOf(G.plat) === "done";
   return `
   <div class="hero-top"><p class="eyebrow">Chronique</p><h1 class="title sm">Le chemin du platine</h1></div>
+  <div class="cols"><div class="col-a">
   ${section("Progression dans le temps", chart(dated, undated.length))}
   ${plat ? `<div class="plat-banner">${medal("p", "lg")}<div><b>Platine obtenu</b><small>${esc(G.platTitle)}</small></div></div>` : ""}
+  </div><div class="col-b">
   ${section("Sceaux apposés", `${Object.keys(groups).length ? Object.entries(groups).map(([m, xs]) => `<h3 class="month">${m}</h3><ol class="chron-tl">${xs.map(entry).join("")}</ol>`).join("") : `<p class="muted">Les prochains sceaux seront datés ici automatiquement.</p>`}
-    ${undated.length ? `<h3 class="month">Avant l'ouverture du grimoire <span>${undated.length}</span></h3><p class="muted">Date inconnue : touche un trophée pour la renseigner.</p><ol class="chron-tl compact">${undated.map(entry).join("")}</ol>` : ""}`)}`;
+    ${undated.length ? `<h3 class="month">Avant l'ouverture du grimoire <span>${undated.length}</span></h3><p class="muted">Date inconnue : touche un trophée pour la renseigner.</p><ol class="chron-tl compact">${undated.map(entry).join("")}</ol>` : ""}`)}</div></div>`;
 }
 function chart(dated, base) {
   const W = 340, H = 150, P = 26, total = G.base.length - 1;
@@ -605,6 +610,7 @@ function vMore() {
   else acc = `<div class="acc"><span class="acc-ico">${UI.cloud}</span><div><b>${esc(u.email)}</b><small>${SYNC_TXT[sync.status]}</small></div></div><div class="row2"><button type="button" class="btn" data-act="syncnow">Synchroniser</button><button type="button" class="btn ghost" data-act="signout">Se déconnecter</button></div>`;
   return `
   <div class="hero-top"><p class="eyebrow">Réglages</p><h1 class="title sm">L'antre du mage</h1></div>
+  <div class="more-grid">
   ${section("Compte & synchronisation", acc)}
   ${section("Jeux du grimoire", `<div class="games">${list.map(g => `<button type="button" class="game${g.id === G.id ? " on" : ""}" data-game="${esc(g.id)}"><span class="game-ico">${INK.d20}</span><span><b>${esc(g.name)}</b><small>${esc(g.platform)} · ${g.trophies.length} trophées</small></span>${g.id === G.id ? `<em>Actif</em>` : ""}</button>`).join("")}</div>
     <p class="muted">Pour suivre un autre platine, télécharge le modèle, remplis-le avec la liste des trophées, puis importe-le.</p>
@@ -613,6 +619,7 @@ function vMore() {
   ${section("Partage", `<p class="muted">Une carte au format portrait avec ton d20, ta progression et tes médailles.</p><button type="button" class="btn" data-act="share">${UI.share}Créer ma carte de progression</button>`)}
   ${section("Ambiance", `<button type="button" class="toggle" data-act="sound" aria-pressed="${prefs.sound}"><span>${prefs.sound ? UI.sound : UI.mute}Sons (sceau, dé, parchemin)</span><i></i></button>`)}
   ${section("Installer sur le téléphone", installEvt ? `<button type="button" class="btn primary" data-act="install">${UI.phone}Installer l'application</button>` : matchMedia("(display-mode: standalone)").matches ? `<p class="muted">L'application est installée. Bonne quête !</p>` : `<ol class="steps-how"><li><b>iPhone (Safari)</b> : bouton Partager, puis « Sur l'écran d'accueil ».</li><li><b>Android (Chrome)</b> : menu ⋮, puis « Installer l'application ».</li></ol>`)}
+  </div>
   <p class="foot">Grimoire de platine v${VERSION} · Liste d'après PSTHC, rareté d'après Exophase. Progression calculée comme sur PlayStation : bronze ${G.points.b}, argent ${G.points.s}, or ${G.points.g} points.</p>`;
 }
 
@@ -935,6 +942,12 @@ document.addEventListener("submit", async e => {
   }
 });
 document.addEventListener("keydown", e => {
+  if (e.key === "/" && !e.target.closest("input,textarea,select") && !ui.sheet && $("#modal").hidden) {
+    e.preventDefault();
+    if (ui.view !== "list") go("list");
+    $("#q")?.focus();
+    return;
+  }
   if (e.key !== "Escape") return;
   if (!$("#modal").hidden) { $("#modal").click(); return; }
   closeSheet();
