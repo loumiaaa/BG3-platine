@@ -1,0 +1,113 @@
+{
+  "id": "mon-jeu",
+  "name": "Mon jeu",
+  "platform": "PS5",
+  "player": "",
+  "platTitle": "Nom du trophée platine",
+  "theme": {
+    "gold": "#D8B166",
+    "arcane": "#A57BFF"
+  },
+  "cats": {
+    "histoire": {
+      "l": "Histoire",
+      "i": "book",
+      "skill": "Histoire",
+      "check": "Test d'Intelligence"
+    },
+    "combat": {
+      "l": "Combat",
+      "i": "sword",
+      "skill": "Athlétisme",
+      "check": "Test de Force"
+    },
+    "explo": {
+      "l": "Exploration",
+      "i": "chest",
+      "skill": "Perception",
+      "check": "Test de Sagesse"
+    }
+  },
+  "acts": [
+    {
+      "id": "c1",
+      "l": "Chapitre 1",
+      "close": "Ce qui se passe quand on quitte ce chapitre."
+    },
+    {
+      "id": "c2",
+      "l": "Chapitre 2"
+    }
+  ],
+  "run": {
+    "fields": [
+      {
+        "id": "diff",
+        "l": "Difficulté",
+        "o": [
+          [
+            "normal",
+            "Normal"
+          ],
+          [
+            "difficile",
+            "Difficile"
+          ]
+        ]
+      }
+    ]
+  },
+  "guides": [
+    {
+      "n": "Guide PSTHC",
+      "lang": "FR",
+      "d": "Feuille de route",
+      "u": "https://www.psthc.fr/"
+    }
+  ],
+  "trophies": [
+    {
+      "id": "platine",
+      "n": "Nom du platine",
+      "d": "Obtenir tous les trophées.",
+      "t": "p",
+      "c": "histoire"
+    },
+    {
+      "id": "exemple-or",
+      "n": "Un trophée or",
+      "d": "Description du trophée.",
+      "t": "g",
+      "c": "histoire",
+      "a": "c2",
+      "r": 12.5
+    },
+    {
+      "id": "exemple-compteur",
+      "n": "Un trophée à compteur",
+      "d": "Ramasser 50 plumes.",
+      "t": "b",
+      "c": "explo",
+      "a": "any",
+      "goal": 50,
+      "u": "plumes",
+      "tip": "Une astuce."
+    },
+    {
+      "id": "exemple-etapes",
+      "n": "Un trophée à étapes",
+      "d": "Vaincre les trois gardiens.",
+      "t": "s",
+      "c": "combat",
+      "a": "c1",
+      "goal": 3,
+      "u": "gardiens",
+      "steps": [
+        "Gardien du feu",
+        "Gardien de l'eau",
+        "Gardien du vent"
+      ],
+      "stepsDrive": 1
+    }
+  ]
+}

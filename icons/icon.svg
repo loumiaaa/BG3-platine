@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#2E2140"/><stop offset=".65" stop-color="#170F1E"/><stop offset="1" stop-color="#0B0810"/></radialGradient>
+    <linearGradient id="br" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F6DFA6"/><stop offset=".5" stop-color="#C9915A"/><stop offset="1" stop-color="#6B4526"/></linearGradient>
+    <radialGradient id="gl"><stop offset="0" stop-color="#B98BFF" stop-opacity=".5"/><stop offset="1" stop-color="#7C4DDB" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <circle cx="256" cy="262" r="210" fill="url(#gl)"/>
+  <circle cx="256" cy="262" r="196" fill="none" stroke="#E2B27A" stroke-opacity=".18" stroke-width="3"/>
+  <g transform="translate(256 262) scale(1.6) translate(-100 -100)">
+    <polygon points="100,10 180,56 180,144 100,190 20,144 20,56" fill="#3B3150"/>
+    <polygon points="100,52 20,56 55,130" fill="#5C5078"/><polygon points="100,52 145,130 180,56" fill="#6A5E88"/>
+    <polygon points="55,130 145,130 100,190" fill="#3E3554"/><polygon points="100,10 180,56 100,52" fill="#7A6D98"/>
+    <polygon points="100,10 20,56 100,52" fill="#665A84"/><polygon points="20,56 20,144 55,130" fill="#463D5E"/>
+    <polygon points="20,144 100,190 55,130" fill="#2F2842"/><polygon points="180,56 180,144 145,130" fill="#4E4468"/>
+    <polygon points="180,144 100,190 145,130" fill="#352D4A"/>
+    <polygon points="100,52 55,130 145,130" fill="#8A7CAE"/>
+    <g fill="none" stroke="url(#br)" stroke-width="3.2" stroke-linejoin="round">
+      <polygon points="100,10 180,56 180,144 100,190 20,144 20,56" stroke-width="5"/>
+      <polygon points="100,52 55,130 145,130"/>
+      <path d="M100 10V52M20 56 100 52 180 56M20 56 55 130 20 144M180 56 145 130 180 144M55 130 100 190 145 130"/>
+    </g>
+    <text x="100" y="108" text-anchor="middle" dominant-baseline="central" font-family="Georgia,serif" font-weight="700" font-size="44" fill="#FFF4DE" stroke="#140C1E" stroke-width="3" paint-order="stroke">20</text>
+  </g>
+</svg>
