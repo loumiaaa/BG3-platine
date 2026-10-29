@@ -1,7 +1,7 @@
 /* Journal de bord BG3 : classes (paliers 1 → 12), compagnons et repères de niveau.
    Règles BG3 (D&D 5e adaptées). Les noms de sorts et de dons sont donnés en français
    avec l'anglais entre parenthèses, pratique pour chercher un guide.
-   Les caractéristiques de départ marquées « à vérifier » ou absentes se corrigent dans l'app. */
+   Toutes les valeurs restent modifiables dans l'app. */
 
 /* XP totale requise pour atteindre chaque niveau */
 export const XP = { 2: 300, 3: 900, 4: 2700, 5: 6500, 6: 14000, 7: 23000, 8: 34000, 9: 48000, 10: 64000, 11: 85000, 12: 100000 };
@@ -235,7 +235,7 @@ export const CLASSES = {
   }
 };
 
-/* Compagnons. stats : valeurs de départ connues ; statsCheck : à vérifier en jeu ; null : à renseigner.
+/* Compagnons. stats : valeurs en difficulté Équilibrée, d'après bg3.wiki (vérifiées en octobre 2026).
    build.p : conseils qui remplacent ceux de la classe, par niveau. */
 export const COMPANIONS = [
   {
@@ -296,14 +296,14 @@ export const COMPANIONS = [
   },
   {
     id: "wyll", n: "Wyll", race: "Humain", cls: "occultiste",
-    stats: { str: 9, dex: 13, con: 15, int: 14, wis: 8, cha: 16 }, statsCheck: 1,
+    stats: { str: 8, dex: 13, con: 14, int: 13, wis: 10, cha: 17 },
     recruit: "Acte 1 · au Bosquet d'Émeraude, en repoussant l'attaque des gobelins à l'entrée.", act: "a1",
     build: {
       n: "Lame de décharge", sub: "Fiélon (imposé)",
       d: "Décharge occulte à chaque tour, renforcée par ses manifestations. Le Pacte de la lame lui permet aussi de frapper au contact.",
       prio: ["cha", "con", "dex"],
       alt: ["Pacte de la chaîne : un familier utile pour les éclaireurs.", "Multiclasse Paladin pour les châtiments avec les emplacements de pacte."],
-      p: { 2: "Décharge déchirante (Agonizing Blast) + Décharge repoussante (Repelling Blast).", 3: "Pacte de la lame.", 4: "Amélioration : Charisme." }
+      p: { 2: "Décharge déchirante (Agonizing Blast) + Décharge repoussante (Repelling Blast).", 3: "Pacte de la lame.", 4: "Amélioration : +1 Charisme (17 → 18), +1 Constitution.", 8: "Amélioration : Charisme (→ 20)." }
     },
     tips: ["Sa quête l'envoie traquer Karlach : parle-lui au lieu de la combattre pour la recruter aussi.", "En Acte 3, rompre son pacte avec Mizora donne le trophée « Écrit en tout petit »."],
     trophies: ["wyll"]
@@ -323,8 +323,9 @@ export const COMPANIONS = [
     trophies: ["karlach"]
   },
   {
-    id: "halsin", n: "Halsin", race: "Elfe des bois", cls: "druide", stats: null,
-    recruit: "Acte 1 · retenu dans le temple du camp gobelin ; il rejoint ton camp une fois les chefs gobelins vaincus.", act: "a1",
+    id: "halsin", n: "Halsin", race: "Elfe des bois", cls: "druide",
+    stats: { str: 10, dex: 14, con: 14, int: 8, wis: 17, cha: 12 },
+    recruit: "Acte 1 · libère-le au camp gobelin et vaincs les chefs : il fête la victoire et rejoint ton camp. Il ne devient compagnon jouable qu'en Acte 2, après avoir défendu son portail (quête d'Art Cullagh).", act: "a2",
     build: {
       n: "Ours du Cercle de la Lune", sub: "Lune",
       d: "Il combat en forme d'ours ou de bête : un second tank qui se soigne en changeant de forme.",
@@ -332,12 +333,13 @@ export const COMPANIONS = [
       alt: ["Cercle des Étoiles : soins et sorts depuis l'arrière."],
       p: { 4: "Amélioration : Sagesse.", 10: "Formes élémentaires : très puissantes." }
     },
-    tips: ["Sa quête en Acte 2 vise à lever la malédiction de l'ombre : il faut du temps et de l'aide."],
+    tips: ["En Acte 2, aide Art Cullagh et récupère son luth abîmé : sans ça, Halsin restera dans les Terres maudites par l'ombre.", "La défense du portail dure 5 tours : protège-le jusqu'au bout."],
     trophies: []
   },
   {
-    id: "minthara", n: "Minthara", race: "Drow", cls: "paladin", stats: null,
-    recruit: "Acte 1 · cheffe du camp gobelin. Elle rejoint si tu attaques le Bosquet avec les gobelins, ou si tu l'assommes (dégâts non létaux) puis la libères à Hautelune en Acte 2.", act: "a1",
+    id: "minthara", n: "Minthara", race: "Drow (vouée à Lolth)", cls: "paladin",
+    stats: { str: 17, dex: 12, con: 13, int: 8, wis: 10, cha: 15 },
+    recruit: "Acte 1 · cheffe du camp gobelin. Elle rejoint si tu attaques le Bosquet avec les gobelins. Sinon : assomme-la à mains nues, attaques non létales activées, puis sauve-la de son procès à Hautelune en Acte 2.", act: "a1",
     build: {
       n: "Vengeance à deux mains", sub: "Vengeance",
       d: "Une paladine d'attaque : châtiments divins et Vœu d'inimitié pour toucher à coup sûr.",
@@ -349,8 +351,9 @@ export const COMPANIONS = [
     trophies: []
   },
   {
-    id: "jaheira", n: "Jaheira", race: "Demi-elfe", cls: "druide", stats: null,
-    recruit: "Acte 2 · à l'auberge du Dernier Refuge, avec les Ménestrels.", act: "a2",
+    id: "jaheira", n: "Jaheira", race: "Demi-elfe (haut-elfe)", cls: "druide",
+    stats: { str: 10, dex: 14, con: 14, int: 8, wis: 17, cha: 12 },
+    recruit: "Acte 2 · rencontrée à l'auberge du Dernier Refuge, avec les Ménestrels. Recrutement définitif vers la fin de l'Acte 2, quand Ketheric se replie vers la colonie.", act: "a2",
     build: {
       n: "Druide de la Terre", sub: "Terre",
       d: "Une vétérane solide : contrôle de zone et soins. Elle arrive à un niveau élevé.",
@@ -358,20 +361,21 @@ export const COMPANIONS = [
       alt: ["Multiclasse Guerrier pour une combattante polyvalente."],
       p: {}
     },
-    tips: ["Si elle tombe au combat, elle ne revient pas : garde un parchemin de résurrection sous la main.", "Sa quête en Acte 3 mène à Minsc."],
+    tips: ["Si elle meurt avant d'être recrutée pour de bon, elle ne pourra plus rejoindre le groupe : protège-la pendant les combats de l'Acte 2.", "Sa quête en Acte 3 mène à Minsc."],
     trophies: []
   },
   {
-    id: "minsc", n: "Minsc", race: "Humain", cls: "rôdeur", stats: null,
+    id: "minsc", n: "Minsc", race: "Humain", cls: "rôdeur",
+    stats: { str: 12, dex: 17, con: 13, int: 8, wis: 15, cha: 10 },
     recruit: "Acte 3 · pendant la quête de Jaheira à la Porte de Baldur.", act: "a3",
     build: {
-      n: "Rôdeur de mêlée", sub: "",
-      d: "Arrive tard, mais très efficace en corps à corps. Et Bouh l'accompagne.",
-      prio: ["str", "con", "wis"],
-      alt: ["Multiclasse Guerrier pour plus d'attaques."],
+      n: "Chasseur", sub: "Chasseur",
+      d: "Arrive tard, mais tape fort dès son arrivée, à l'arc comme à deux armes. Et Bouh l'accompagne.",
+      prio: ["dex", "wis", "con"],
+      alt: ["Traqueur des ténèbres : premier tour dévastateur.", "Multiclasse Guerrier pour plus d'attaques."],
       p: {}
     },
-    tips: ["Comme Jaheira, s'il tombe au combat, il ne revient pas."],
+    tips: ["Il rejoint le groupe à la fin de la quête de Jaheira pour le retrouver, en Acte 3."],
     trophies: []
   }
 ];
