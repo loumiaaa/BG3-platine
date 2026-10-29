@@ -591,3 +591,17 @@ textarea{width:100%;min-height:96px;resize:vertical;border:1px solid var(--line-
 .ink-step b{font-family:var(--f-ink);font-weight:400;font-size:34px;min-width:40px;text-align:center;color:var(--parch-ink)}
 .ink-step em{font-size:15px;color:var(--wax)}
 .callout>svg:first-child{width:44px;height:44px;color:var(--arcane)}
+
+/* Portraits */
+.ava.photo{padding:0;overflow:hidden;background:#140D19}
+.ava.photo img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.92) contrast(1.04)}
+.ava.photo::after{content:"";position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,240,210,.18),inset 0 -12px 18px rgba(20,12,28,.45);pointer-events:none}
+.ava{position:relative}
+.comp[data-cs="todo"] .ava.photo,.comp[data-cs="gone"] .ava.photo{filter:grayscale(.8) brightness(.7)}
+.ava-wrap{display:grid;justify-items:center;gap:4px;align-self:start}
+.ava-edit{position:relative;display:block;cursor:pointer;border-radius:50%}
+.ava-edit:focus-within{outline:2px solid var(--gold-hi);outline-offset:3px}
+.ava-badge{position:absolute;right:-4px;bottom:-2px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(180deg,#E3AE72,#B07A45);color:#1A1207;border:2px solid #140D19;box-shadow:0 2px 6px rgba(0,0,0,.5)}
+.ava-badge svg{width:14px;height:14px}
+.ava-del{font-size:13px;color:var(--muted);text-decoration:underline;padding:2px 4px;min-height:28px}
+.parch .ava-del{color:var(--parch-ink-2)}

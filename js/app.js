@@ -7,7 +7,7 @@ import { sfx, setSound } from "./sound.js";
 import { makeCard, shareBlob } from "./share.js";
 import { initMotes, burst } from "./motes.js";
 
-const VERSION = "2.1.0";
+const VERSION = "2.2.0";
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = n => Number(n).toLocaleString("fr-FR");
@@ -370,7 +370,32 @@ const recruited = c => ["party", "camp"].includes(cst(c.id).status);
 const dueComps = () => G.party ? comps().filter(c => recruited(c) && compLvl(c) < party().level) : [];
 const mod = v => Math.floor((v - 10) / 2);
 const fmtMod = m => (m >= 0 ? "+" : "−") + Math.abs(m);
-function avatar(clsId, cls = "") { const C = G.party?.CLASSES[clsId]; return `<span class="ava ${cls}" aria-hidden="true">${C ? INK[C.i] : INK.hero}</span>`; }
+function avatar(clsId, cls = "", imgId = "") {
+  const img = imgId && sp.get("img:" + imgId)?.src;
+  if (img) return `<span class="ava photo ${cls}" aria-hidden="true"><img src="${esc(img)}" alt=""></span>`;
+  const C = G.party?.CLASSES[clsId];
+  return `<span class="ava ${cls}" aria-hidden="true">${C ? INK[C.i] : INK.hero}</span>`;
+}
+/* Médaillon modifiable : toucher pour choisir une photo (capture d'écran du jeu, par exemple) */
+function avatarEdit(clsId, imgId, name) {
+  const has = !!sp.get("img:" + imgId)?.src;
+  return `<span class="ava-wrap"><label class="ava-edit" aria-label="${has ? "Changer" : "Ajouter"} le portrait de ${esc(name)}">${avatar(clsId, "lg", imgId)}<span class="ava-badge">${UI.camera}</span><input type="file" accept="image/*" data-img="${esc(imgId)}" hidden></label>${has ? `<button type="button" class="ava-del" data-imgdel="${esc(imgId)}">Retirer</button>` : ""}</span>`;
+}
+/* Recadre au centre (légèrement vers le haut, où sont les visages) et réduit à 192 px */
+async function portraitFrom(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const S = 192, side = Math.min(im.naturalWidth, im.naturalHeight);
+    const sx = (im.naturalWidth - side) / 2, sy = Math.max(0, (im.naturalHeight - side) * .3);
+    const c = document.createElement("canvas");
+    c.width = c.height = S;
+    c.getContext("2d").drawImage(im, sx, sy, side, side, 0, 0, S, S);
+    let src = c.toDataURL("image/webp", .82);
+    if (!src.startsWith("data:image/webp")) src = c.toDataURL("image/jpeg", .85);
+    return src;
+  } finally { URL.revokeObjectURL(url); }
+}
 function statsHTML(stats, prio = [], scope) {
   return `<div class="stats">${G.party.STATS.map(([k, a, l]) => {
     const v = stats?.[k], pi = prio.indexOf(k);
@@ -396,7 +421,7 @@ function compRow(c) {
   const s = cst(c.id), clsId = s.cls || c.cls, C = G.party.CLASSES[clsId], L = compLvl(c), nxt = C?.lv[L], sub = s.sub || c.build.sub;
   const later = s.status === "todo" && hasRun() && actIdx(c.act) > actIdx(run().act);
   return `<button type="button" class="comp" data-comp="${c.id}" data-cs="${s.status}">
-    ${avatar(clsId)}
+    ${avatar(clsId, "", c.id)}
     <span class="comp-t"><b>${esc(c.n)}</b><small>${esc(c.race)} · ${esc(C?.l || "")}${sub ? ` (${esc(sub)})` : ""}</small>
       ${s.status === "todo" ? `<small class="where">${later ? `Disponible en ${esc(actLabel(c.act))} · ` : ""}${esc(c.recruit)}</small>` : nxt && L < 12 ? `<small class="nxt">Niv. ${L + 1} : ${esc(nxt.f)}</small>` : ""}</span>
     <span class="comp-r">${s.status !== "todo" && s.status !== "gone" ? `<em class="lv" aria-label="Niveau ${L}">${L}</em>` : ""}${recruited(c) && L < party().level ? `<span class="pill risk">À monter</span>` : ""}${s.romance ? `<span class="heart" aria-label="Romance">${INK.heart}</span>` : ""}</span>
@@ -407,8 +432,8 @@ function vParty() {
   const list = comps(), by = st => list.filter(c => cst(c.id).status === st);
   const inParty = by("party"), due = dueComps(), rep = P.ACT_LEVELS[r.act];
   const slots = [
-    `<button type="button" class="slot me" data-jtab="perso">${avatar(r.fields.cls)}<b>${esc(p.name || "Toi")}</b><small>Niv. ${p.level}</small></button>`,
-    ...inParty.map(c => `<button type="button" class="slot" data-comp="${c.id}">${avatar(cst(c.id).cls || c.cls)}<b>${esc(c.n)}</b><small>Niv. ${compLvl(c)}</small></button>`),
+    `<button type="button" class="slot me" data-jtab="perso">${avatar(r.fields.cls, "", "pc")}<b>${esc(p.name || "Toi")}</b><small>Niv. ${p.level}</small></button>`,
+    ...inParty.map(c => `<button type="button" class="slot" data-comp="${c.id}">${avatar(cst(c.id).cls || c.cls, "", c.id)}<b>${esc(c.n)}</b><small>Niv. ${compLvl(c)}</small></button>`),
     ...Array(Math.max(0, 3 - inParty.length)).fill(`<span class="slot empty">${`<span class="ava">${INK.camp}</span>`}<small>Place libre</small></span>`)
   ].join("");
   const grp = (title, xs, empty) => xs.length ? section(`${title} <span class="ph-n">${xs.length}</span>`, `<div class="comps">${xs.map(compRow).join("")}</div>`) : (empty ? section(title, `<p class="muted">${empty}</p>`) : "");
@@ -438,7 +463,7 @@ function vPC() {
   <section class="parch char"><div class="parch-in">
     <p class="ink-eyebrow">${esc(G.name)}</p>
     <h1 class="ink-title">Fiche de personnage</h1>
-    <div class="pc-head">${avatar(clsId, "lg ink")}<label class="ink-field"><span class="ink-lbl">Nom</span><input id="pcName" value="${esc(p.name)}" placeholder="Ton héros, ton héroïne" autocomplete="off"></label></div>
+    <div class="pc-head">${avatarEdit(clsId, "pc", p.name || "ton personnage")}<label class="ink-field"><span class="ink-lbl">Nom</span><input id="pcName" value="${esc(p.name)}" placeholder="Ton héros, ton héroïne" autocomplete="off"></label></div>
     ${fOrigin ? `<div class="field"><span class="ink-lbl">Origine</span>${chips(fOrigin)}</div>` : ""}
     ${!origin ? `<div class="field"><span class="ink-lbl">Race</span><div class="opts">${P.RACES.map(x => `<button type="button" data-pcrace="${esc(x)}" aria-pressed="${p.race === x}">${esc(x)}</button>`).join("")}</div></div>` : ""}
     ${fCls ? `<div class="field"><span class="ink-lbl">Classe</span>${chips(fCls)}</div>` : ""}
@@ -467,7 +492,7 @@ function sheetComp(c) {
   <div class="grab" aria-hidden="true"></div>
   <button type="button" class="sh-close" data-close aria-label="Fermer">${UI.close}</button>
   <div class="sh-head">
-    ${avatar(clsId, "lg")}
+    ${avatarEdit(clsId, c.id, c.n)}
     <div>
       <p class="eyebrow">${esc(c.race)} · ${esc(C.l)}${s.sub || c.build.sub ? " · " + esc(s.sub || c.build.sub) : ""}</p>
       <h2>${esc(c.n)}</h2>
@@ -842,6 +867,7 @@ document.addEventListener("click", e => {
   const ff = t.closest("[data-fflag]"); if (ff) { const k = ff.dataset.fflag; ui.flags.has(k) ? ui.flags.delete(k) : ui.flags.add(k); return refresh(); }
   const fd = t.closest("[data-field]"); if (fd) { const r = run(); const v = r.fields[fd.dataset.field] === fd.dataset.val ? "" : fd.dataset.val; sfx.tick(); return setRun({ fields: { ...r.fields, [fd.dataset.field]: v } }); }
   const as = t.closest("[data-actset]"); if (as) return moveAct(as.dataset.actset);
+  const idl = t.closest("[data-imgdel]"); if (idl) { putKey("img:" + idl.dataset.imgdel, { src: "" }); sfx.tick(); return refresh(); }
   const jt = t.closest("[data-jtab]"); if (jt) { ui.jtab = jt.dataset.jtab; sfx.tick(); closeSheet(); return renderView(); }
   const cp = t.closest("[data-comp]"); if (cp && !t.closest("#sheet")) return openSheet({ type: "comp", id: cp.dataset.comp });
   const pl = t.closest("[data-plvl]"); if (pl) return setPartyLevel(Number(pl.dataset.plvl));
@@ -879,6 +905,14 @@ document.addEventListener("change", async e => {
   const t = e.target;
   if (t.id === "prog") return setProgress(byId(ui.sheet.id), t.value);
   if (t.id === "runName") return setRun({ name: t.value.trim() });
+  if (t.dataset.img) {
+    const f = t.files?.[0], id = t.dataset.img;
+    t.value = "";
+    if (!f) return;
+    try { putKey("img:" + id, { src: await portraitFrom(f) }); sfx.stamp(); toast(`<div class="unlock plain">Portrait ajouté</div>`, 1800); }
+    catch (err) { toast(`<div class="unlock plain">Image illisible, essaie une autre photo</div>`, 2400); }
+    return refresh();
+  }
   if (t.id === "pcName") { putKey("pc", { ...pc(), name: t.value.trim() }); return refresh(); }
   if (t.dataset.stat) { const [scope, k] = t.dataset.stat.split("|"); return setStat(scope, k, t.value); }
   if (t.id === "ccls") { const c = compById(ui.sheet.id); return setComp(c, { cls: t.value === c.cls ? "" : t.value, sub: "" }); }

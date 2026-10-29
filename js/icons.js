@@ -50,6 +50,7 @@ export const UI = {
   cloud: ui(`<path d="M7 18h10.5a4 4 0 0 0 .5-8 6 6 0 0 0-11.6 1.6A3.3 3.3 0 0 0 7 18z"/>`),
   trash: ui(`<path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/>`),
   arrow: ui(`<path d="M9 6l6 6-6 6"/>`, 2.2),
+  camera: ui(`<path d="M4 8.5h3.2L9 6h6l1.8 2.5H20a1 1 0 0 1 1 1V18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.3" r="3.6"/>`),
   phone: ui(`<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>`),
   dot: `<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1 11 6 6 11 1 6z" fill="currentColor"/></svg>`
 };
