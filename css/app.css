@@ -703,3 +703,35 @@ textarea{width:100%;min-height:96px;resize:vertical;border:1px solid var(--line-
 .calm .sh-body{gap:16px}
 .calm .nav [aria-current="page"] .nav-ico{filter:none}
 .calm .hint{font-size:16px;color:var(--muted)}
+
+/* ---------- Profil et comptes ---------- */
+.bar-r{display:flex;align-items:center;gap:8px;flex:none}
+.me-btn{border-radius:50%;display:grid}
+.ava.xs{width:34px;height:34px;border-width:1.5px;box-shadow:0 0 0 1.5px #140D19}
+.ava.xs svg{width:64%;height:64%}
+.profile{display:grid;grid-template-columns:66px minmax(0,1fr);gap:14px;align-items:center}
+.profile b{display:block;font-family:var(--f-cap);font-size:17px;color:var(--gold-hi)}
+.profile small{color:var(--muted);font-size:15px;word-break:break-word}
+.link{justify-self:start;min-height:40px;font-size:15.5px;color:var(--gold);text-decoration:underline;text-underline-offset:3px;text-align:left}
+.seg3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.seg3 [aria-pressed="true"]{background:linear-gradient(180deg,#E3AE72,#B07A45);color:#1A1207}
+.auth{display:grid;gap:12px}
+
+/* Parcours d'accueil */
+.wiz-modal{align-items:center}
+.wizard{gap:16px;padding:24px 20px 20px}
+.wz-dots{display:flex;justify-content:center;gap:8px}
+.wz-dots i{width:10px;height:10px;transform:rotate(45deg);border:1.5px solid var(--bronze);background:transparent}
+.wz-dots i.on{background:var(--gold);border-color:var(--gold-hi)}
+.wz-dots i.done{background:var(--bronze)}
+.wz-t{margin:0;font-family:var(--f-cap);font-weight:700;font-size:22px;color:var(--gold-hi);text-align:center;letter-spacing:.03em}
+.wz-p{margin:0;text-align:center;color:var(--muted);font-size:16.5px}
+.wz-p b{color:var(--ink)}
+.wz-me{display:grid;grid-template-columns:auto minmax(0,1fr);gap:16px;align-items:end}
+.wz-field input{width:100%;height:48px;border:1px solid var(--line-2);border-radius:10px;background:var(--panel);padding:0 13px;font-size:17px}
+.wz-nav{margin-top:6px}
+
+/* Taille du texte (on agrandit le contenu, pas la structure) */
+body.text-l main,body.text-l .sheet>*,body.text-l .modal-in>*{zoom:1.12}
+body.text-xl main,body.text-xl .sheet>*,body.text-xl .modal-in>*{zoom:1.25}
+body.text-l .nav button,body.text-xl .nav button{font-size:10.5px}

@@ -7,7 +7,7 @@ import cfg from "../config.js";
 const TABLE = "grimoire_entries";
 const LIB = new URL("../vendor/supabase.js", import.meta.url).href;
 let sb = null, user = null, spaces = [], timer = 0, running = false, again = false;
-let onStatus = () => {}, onRemote = () => {};
+let onStatus = () => {}, onRemote = () => {}, onAuth = () => {}, blocked = false;
 export let status = "off";
 
 export const enabled = () => !!(cfg.SUPABASE_URL && cfg.SUPABASE_ANON_KEY);
@@ -29,6 +29,7 @@ function loadLib() {
 export async function init(hooks) {
   onStatus = hooks.status || onStatus;
   onRemote = hooks.remote || onRemote;
+  onAuth = hooks.auth || onAuth;
   if (!enabled()) return set("off");
   addEventListener("online", () => sb ? schedule(0) : boot());
   document.addEventListener("visibilitychange", () => { if (!document.hidden) sb ? schedule(0) : boot(); });
@@ -43,9 +44,12 @@ async function boot() {
     sb = createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY, { auth: { persistSession: true, autoRefreshToken: true, storageKey: "grimoire:auth" } });
     const { data } = await sb.auth.getSession();
     user = data.session?.user || null;
-    sb.auth.onAuthStateChange((_e, s) => {
+    // l'app peut bloquer la synchro (changement de compte sur un appareil partagé : on recharge d'abord)
+    if (onAuth("INITIAL", user) === "stop") { blocked = true; return; }
+    sb.auth.onAuthStateChange((e, s) => {
       const was = user?.id;
       user = s?.user || null;
+      if (onAuth(e, user) === "stop") { blocked = true; return; }
       if (user && user.id !== was) schedule(0);
       if (!user) set("signedout");
     });
@@ -62,7 +66,7 @@ export function setSpaces(list) { spaces = list; if (user) schedule(0); }
 export function schedule(ms = 1200) { clearTimeout(timer); timer = setTimeout(run, ms); }
 
 async function run() {
-  if (!sb || !user) return;
+  if (!sb || !user || blocked) return;
   if (running) { again = true; return; }
   running = true;
   set("syncing");
@@ -103,5 +107,16 @@ export async function signUp(email, password) {
   if (error) throw error;
   return !!data.session;
 }
-export async function signOut() { if (sb) await sb.auth.signOut(); user = null; set("signedout"); }
+export async function signOut() { blocked = true; clearTimeout(timer); if (sb) await sb.auth.signOut(); user = null; set("signedout"); }
+export async function resetPassword(email) {
+  if (!sb) throw new Error("Serveur injoignable pour l'instant. Vérifie ta connexion.");
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href.split("#")[0] });
+  if (error) throw error;
+}
+export async function updatePassword(password) {
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) throw error;
+}
 export const syncNow = () => schedule(0);
+/* envoie tout de suite ce qui reste (avant une déconnexion) */
+export async function flush() { clearTimeout(timer); if (!sb || !user || blocked) return; await run(); }

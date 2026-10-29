@@ -7,7 +7,7 @@ import { sfx, setSound } from "./sound.js";
 import { makeCard, shareBlob } from "./share.js";
 import { initMotes, burst } from "./motes.js";
 
-const VERSION = "2.4.0";
+const VERSION = "3.0.0";
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = n => Number(n).toLocaleString("fr-FR");
@@ -20,21 +20,38 @@ const isoDay = ts => { const d = new Date(ts); return `${d.getFullYear()}-${Stri
 
 /* ---------- État ---------- */
 const PREF = "grimoire:prefs";
-const prefs = { game: "bg3", sound: true, calm: true, ...readJSON(PREF) };
-document.body.classList.toggle("calm", prefs.calm);
+const prefs = { game: "bg3", ...readJSON(PREF) };
 const savePrefs = () => writeJSON(PREF, prefs);
-setSound(prefs.sound);
+
+/* Profil : pseudo, plateforme et réglages de confort, synchronisés avec le compte */
+const prof = new Space("_profile");
+const DEFAULTS = { name: "", platform: "PS5", calm: true, sound: true, text: "m", start: "home", onboarded: false };
+const me = () => {
+  const old = {};
+  if (prefs.calm !== undefined) old.calm = prefs.calm;
+  if (prefs.sound !== undefined) old.sound = prefs.sound;
+  const { updatedAt, ...m } = { ...DEFAULTS, ...old, ...(prof.get("me") || {}) };
+  return m;
+};
+function setMe(patch) { prof.put("me", { ...me(), ...patch }); sync.schedule(); applySettings(); }
+function applySettings() {
+  const m = me();
+  document.body.classList.toggle("calm", !!m.calm);
+  document.body.classList.toggle("text-l", m.text === "l");
+  document.body.classList.toggle("text-xl", m.text === "xl");
+  setSound(m.sound);
+}
+applySettings();
+const meImg = () => prof.get("avatar")?.src || "";
+const meAvatar = (cls = "") => meImg() ? `<span class="ava photo ${cls}" aria-hidden="true"><img src="${esc(meImg())}" alt=""></span>` : `<span class="ava ${cls}" aria-hidden="true">${INK.hero}</span>`;
+const PLATFORMS = ["PS5", "PC", "Xbox", "Mac"];
+const TEXT = [["m", "Normal"], ["l", "Grand"], ["xl", "Très grand"]];
 
 const lib = new Space("_library");
 let G, sp;
 const ui = { view: "home", tab: "todo", q: "", types: new Set(), cats: new Set(), flags: new Set(), sheet: null, stamp: null };
 let installEvt = null;
 
-function seedFor(g) {
-  const o = {};
-  if (g.seed?.done) g.seed.done.forEach(id => { o["t:" + id] = { status: "done", progress: g.trophies.find(x => x.id === id)?.goal || 0, note: "", doneAt: null, updatedAt: g.seed.at || 1 }; });
-  return o;
-}
 function useGame(id) {
   const list = gamesFrom(lib);
   G = list.find(g => g.id === id) || list[0];
@@ -42,8 +59,8 @@ function useGame(id) {
   G.base = G.trophies.filter(x => !x.bonus);
   G.plat = G.trophies.find(x => x.t === "p");
   G.totalPts = G.base.reduce((a, x) => a + (G.points[x.t] || 0), 0);
-  sp = new Space(G.id, seedFor(G));
-  sync.setSpaces([sp, lib]);
+  sp = new Space(G.id);
+  sync.setSpaces([sp, lib, prof]);
   const r = document.documentElement.style;
   ["gold", "arcane", "bronze"].forEach(k => G.theme[k] ? r.setProperty("--" + k, G.theme[k]) : r.removeProperty("--" + k));
 }
@@ -184,7 +201,7 @@ function renderBar() {
       <span class="brand-ico">${INK.d20}</span>
       <span><b>Grimoire de platine</b><small>${esc(G.name)}${G.platform ? " · " + esc(G.platform) : ""}</small></span>
     </button>
-    <button type="button" class="sync" data-go="more" data-s="${sync.status}" aria-label="État de la synchronisation : ${SYNC_TXT[sync.status]}"><i></i><span>${SYNC_TXT[sync.status]}</span></button>`;
+    <span class="bar-r"><button type="button" class="me-btn" data-go="more" aria-label="Mon profil">${meAvatar("xs")}</button><button type="button" class="sync" data-go="more" data-s="${sync.status}" aria-label="État de la synchronisation : ${SYNC_TXT[sync.status]}"><i></i><span>${SYNC_TXT[sync.status]}</span></button></span>`;
 }
 const NAV = [["home", "Grimoire", "book"], ["list", "Registre", "map"], ["run", "Journal", "hero"], ["chron", "Chronique", "hourglass"], ["more", "Plus", "star"]];
 function renderNav() {
@@ -203,7 +220,7 @@ function vHome() {
 
   return `
   <div class="hero-top">
-    <p class="eyebrow">Registre des hauts faits${G.player ? " · " + esc(G.player) : ""}</p>
+    <p class="eyebrow">Registre des hauts faits${me().name ? " · " + esc(me().name) : ""}</p>
     <h1 class="title">${esc(G.platTitle)}</h1>
   </div>
   <div class="cols"><div class="col-a">
@@ -611,27 +628,119 @@ function chart(dated, base) {
 }
 
 /* ---------- Vue : Plus ---------- */
+function authForm() {
+  return `<form class="auth"><label><span class="lbl">Email</span><input name="email" type="email" autocomplete="email" required></label><label><span class="lbl">Mot de passe</span><input name="pw" type="password" autocomplete="current-password" minlength="6" required></label><div class="row2"><button class="btn primary" name="mode" value="in">Se connecter</button><button class="btn" name="mode" value="up">Créer un compte</button></div><button type="button" class="link" data-act="forgot">Mot de passe oublié ?</button><p class="auth-msg" role="status"></p></form>`;
+}
+function accountHTML() {
+  const u = sync.currentUser();
+  if (!sync.enabled()) return `<p class="muted">La synchronisation n'est pas configurée : ta progression reste sur cet appareil.</p>`;
+  if (!sync.ready()) return `<p class="muted">${sync.status === "connecting" ? "Connexion au serveur…" : "Serveur injoignable pour l'instant. Ta progression est gardée sur l'appareil et sera synchronisée au retour du réseau."}</p>${sync.status === "connecting" ? "" : `<button type="button" class="btn" data-act="retry">${UI.cloud}Réessayer</button>`}`;
+  if (!u) return `<p class="muted">Crée un compte pour retrouver ta progression sur tous tes appareils.</p>${authForm()}`;
+  return `<div class="acc"><span class="acc-ico">${UI.cloud}</span><div><b>${esc(u.email)}</b><small>${SYNC_TXT[sync.status]}</small></div></div>
+    <div class="row2"><button type="button" class="btn" data-act="syncnow">Synchroniser</button><button type="button" class="btn" data-act="pwchange">Mot de passe</button></div>
+    <button type="button" class="btn ghost" data-act="signout">Se déconnecter</button>`;
+}
+function comfortHTML() {
+  const m = me();
+  return `<button type="button" class="toggle" data-me="calm" aria-pressed="${m.calm}"><span>${INK.star}Mode calme : moins d'effets, cartes plus aérées</span><i></i></button>
+    <div><span class="lbl">Taille du texte</span><div class="seg seg3">${TEXT.map(([k, l]) => `<button type="button" data-text="${k}" aria-pressed="${m.text === k}">${l}</button>`).join("")}</div></div>
+    <button type="button" class="toggle" data-me="sound" aria-pressed="${m.sound}"><span>${m.sound ? UI.sound : UI.mute}Sons (sceau, dé, parchemin)</span><i></i></button>`;
+}
 function vMore() {
-  const u = sync.currentUser(), list = gamesFrom(lib);
-  let acc;
-  if (!sync.enabled()) acc = `<p class="muted">La synchronisation n'est pas encore configurée : ta progression reste sur cet appareil. Renseigne <code>config.js</code> avec ton projet Supabase (voir le README) pour la retrouver partout.</p>`;
-  else if (!sync.ready()) acc = `<p class="muted">${sync.status === "connecting" ? "Connexion au serveur…" : "Serveur injoignable pour l'instant. Ta progression est gardée sur l'appareil et sera synchronisée au retour du réseau."}</p>${sync.status === "connecting" ? "" : `<button type="button" class="btn" data-act="retry">${UI.cloud}Réessayer</button>`}`;
-  else if (!u) acc = `<form class="auth" id="auth"><label><span class="lbl">Email</span><input name="email" type="email" autocomplete="email" required></label><label><span class="lbl">Mot de passe</span><input name="pw" type="password" autocomplete="current-password" minlength="6" required></label><div class="row2"><button class="btn primary" name="mode" value="in">Se connecter</button><button class="btn" name="mode" value="up">Créer le compte</button></div><p class="auth-msg" id="authMsg" role="status"></p></form>`;
-  else acc = `<div class="acc"><span class="acc-ico">${UI.cloud}</span><div><b>${esc(u.email)}</b><small>${SYNC_TXT[sync.status]}</small></div></div><div class="row2"><button type="button" class="btn" data-act="syncnow">Synchroniser</button><button type="button" class="btn ghost" data-act="signout">Se déconnecter</button></div>`;
+  const m = me(), u = sync.currentUser();
   return `
   <div class="hero-top"><p class="eyebrow">Réglages</p><h1 class="title sm">L'antre du mage</h1></div>
   <div class="more-grid">
-  ${section("Compte & synchronisation", acc)}
-  ${section("Jeux du grimoire", `<div class="games">${list.map(g => `<button type="button" class="game${g.id === G.id ? " on" : ""}" data-game="${esc(g.id)}"><span class="game-ico">${INK.d20}</span><span><b>${esc(g.name)}</b><small>${esc(g.platform)} · ${g.trophies.length} trophées</small></span>${g.id === G.id ? `<em>Actif</em>` : ""}</button>`).join("")}</div>
-    <p class="muted">Pour suivre un autre platine, télécharge le modèle, remplis-le avec la liste des trophées, puis importe-le.</p>
-    <div class="row2"><button type="button" class="btn" data-act="tpl">${UI.download}Modèle de jeu</button><label class="btn">${UI.upload}Importer un jeu<input type="file" accept="application/json,.json" id="gameFile" hidden></label></div>`)}
-  ${section("Sauvegarde", `<p class="muted">Exporte ta progression (trophées, notes, fiche de partie) dans un fichier, pour la garder ou la restaurer.</p><div class="row2"><button type="button" class="btn" data-act="export">${UI.download}Exporter</button><label class="btn">${UI.upload}Restaurer<input type="file" accept="application/json,.json" id="backupFile" hidden></label></div>`)}
+  ${section("Mon profil", `<div class="profile">${meAvatar("lg")}<div><b>${esc(m.name || "Aventurier·e sans nom")}</b><small>${esc(m.platform)}${u ? " · " + esc(u.email) : " · sans compte"}</small></div></div>
+    <button type="button" class="btn" data-act="profile">Modifier mon profil</button>`)}
+  ${section("Compte & synchronisation", accountHTML())}
+  ${section("Confort", `${comfortHTML()}
+    <div><span class="lbl">Ouvrir l'app sur</span><div class="chips">${[["home", "Grimoire"], ["list", "Registre"], ["run", "Journal"]].map(([k, l]) => `<button type="button" class="chip" data-start="${k}" aria-pressed="${m.start === k}">${l}</button>`).join("")}</div></div>`)}
+  ${section("Sauvegarde", `<p class="muted">Exporte ta progression (trophées, notes, fiche de partie) dans un fichier, pour la garder ou la restaurer.</p><div class="row2"><button type="button" class="btn" data-act="export">${UI.download}Exporter</button><label class="btn">${UI.upload}Restaurer<input type="file" accept="application/json,.json" id="backupFile" hidden></label></div>
+    ${G.seed?.done ? `<button type="button" class="link" data-act="seed">Reprendre la progression de l'ancienne page (${G.seed.done.length} trophées)</button>` : ""}`)}
   ${section("Partage", `<p class="muted">Une carte au format portrait avec ton d20, ta progression et tes médailles.</p><button type="button" class="btn" data-act="share">${UI.share}Créer ma carte de progression</button>`)}
-  ${section("Confort", `<button type="button" class="toggle" data-act="calm" aria-pressed="${prefs.calm}"><span>${INK.star}Mode calme : moins d'effets, cartes plus aérées</span><i></i></button><button type="button" class="toggle" data-act="sound" aria-pressed="${prefs.sound}"><span>${prefs.sound ? UI.sound : UI.mute}Sons (sceau, dé, parchemin)</span><i></i></button>`)}
   ${section("Installer sur le téléphone", installEvt ? `<button type="button" class="btn primary" data-act="install">${UI.phone}Installer l'application</button>` : matchMedia("(display-mode: standalone)").matches ? `<p class="muted">L'application est installée. Bonne quête !</p>` : `<ol class="steps-how"><li><b>iPhone (Safari)</b> : bouton Partager, puis « Sur l'écran d'accueil ».</li><li><b>Android (Chrome)</b> : menu ⋮, puis « Installer l'application ».</li></ol>`)}
   </div>
   <p class="foot">Grimoire de platine v${VERSION} · Liste d'après PSTHC, rareté d'après Exophase. Progression calculée comme sur PlayStation : bronze ${G.points.b}, argent ${G.points.s}, or ${G.points.g} points.</p>`;
 }
+
+/* ---------- Parcours d'accueil : une question par écran ---------- */
+let wiz = null, wizShown = false;
+function openWizard(edit = false) { wiz = { step: 0, edit }; renderWizard(); }
+function wizSteps() { return wiz.edit || !sync.enabled() ? 2 : 3; }
+function renderWizard() {
+  const m = me(), n = wizSteps(), last = wiz.step === n - 1, u = sync.currentUser();
+  const body = [
+    () => `<h2 class="wz-t">${wiz.edit ? "Ton profil" : "Bienvenue dans le grimoire"}</h2>
+      <p class="wz-p">Comment veux-tu qu'on t'appelle ?</p>
+      <div class="wz-me"><span class="ava-wrap"><label class="ava-edit" aria-label="Choisir une photo de profil">${meAvatar("lg")}<span class="ava-badge">${UI.camera}</span><input type="file" accept="image/*" data-img="me" hidden></label></span>
+        <label class="wz-field"><span class="lbl">Pseudo</span><input id="wzName" value="${esc(m.name)}" placeholder="Ton pseudo" autocomplete="nickname"></label></div>
+      <div><span class="lbl">Tu joues sur</span><div class="chips">${PLATFORMS.map(x => `<button type="button" class="chip" data-wzplat="${x}" aria-pressed="${m.platform === x}">${x}</button>`).join("")}</div></div>`,
+    () => `<h2 class="wz-t">Ton confort</h2>
+      <p class="wz-p">Règle l'affichage pour qu'il te soit agréable. Tu pourras le changer à tout moment dans « Plus ».</p>
+      ${comfortHTML()}`,
+    () => `<h2 class="wz-t">Ton compte</h2>
+      ${u ? `<p class="wz-p">Tu es connecté·e avec <b>${esc(u.email)}</b>. Ta progression te suit sur tous tes appareils.</p>`
+        : `<p class="wz-p">Avec un compte, tu retrouves ta progression sur ton téléphone et ton ordinateur. Tu peux aussi continuer sans compte.</p>${authForm()}`}`
+  ][wiz.step]();
+  const m2 = openModal(`<section class="dialog wizard">${corners()}
+    <div class="wz-dots" aria-label="Étape ${wiz.step + 1} sur ${n}">${Array.from({ length: n }, (_, i) => `<i class="${i === wiz.step ? "on" : i < wiz.step ? "done" : ""}"></i>`).join("")}</div>
+    ${body}
+    <div class="row2 wz-nav">${wiz.step ? `<button type="button" class="btn ghost" data-wz="back">Retour</button>` : wiz.edit ? `<button type="button" class="btn ghost" data-wz="close">Annuler</button>` : `<span></span>`}
+      <button type="button" class="btn primary" data-wz="${last ? "done" : "next"}">${last ? (wiz.edit ? "Enregistrer" : u || !sync.enabled() ? "C'est parti" : "Continuer sans compte") : "Suivant"}</button></div>
+  </section>`, "wiz-modal");
+  m2.onclick = e => {
+    const b = e.target.closest("[data-wz]");
+    const name = $("#wzName");
+    if (name && name.value.trim() !== me().name) setMe({ name: name.value.trim() });
+    const pl = e.target.closest("[data-wzplat]"); if (pl) { setMe({ platform: pl.dataset.wzplat }); return renderWizard(); }
+    if (!b) return;
+    const a = b.dataset.wz;
+    if (a === "next") { wiz.step++; sfx.page(); return renderWizard(); }
+    if (a === "back") { wiz.step--; return renderWizard(); }
+    m2.onclick = null; closeModal();
+    if (a === "done") { setMe({ onboarded: true }); toast(`<div class="unlock plain">${me().name ? `Bienvenue, ${esc(me().name)} !` : "Bienvenue !"}</div>`, 2200); }
+    wiz = null; refresh();
+  };
+}
+function maybeWizard() { if (wizShown || me().onboarded) return; wizShown = true; setTimeout(() => { if ($("#modal").hidden) openWizard(); }, 500); }
+
+/* ---------- Comptes : appareil partagé, mot de passe ---------- */
+const OWNER = "grimoire:owner";
+function wipeLocal() {
+  Object.keys(localStorage).filter(k => k.startsWith("grimoire:") && ![PREF, "grimoire:folds", "grimoire:auth", OWNER].includes(k)).forEach(k => localStorage.removeItem(k));
+}
+function onAuth(evt, u) {
+  if (evt === "PASSWORD_RECOVERY") setTimeout(askNewPassword, 400);
+  if (!u) return;
+  const owner = localStorage.getItem(OWNER);
+  // un autre compte se connecte sur cet appareil : on repart d'un appareil vierge pour ne rien mélanger
+  if (owner && owner !== u.id) { wipeLocal(); localStorage.setItem(OWNER, u.id); location.reload(); return "stop"; }
+  localStorage.setItem(OWNER, u.id);
+}
+async function signOutFlow() {
+  const ok = await confirmBox({ title: "Se déconnecter", body: "<p>Ta progression reste en sécurité dans ton compte. Elle sera retirée de cet appareil et reviendra dès que tu te reconnecteras.</p>", yes: "Se déconnecter", no: "Annuler" });
+  if (!ok) return;
+  await sync.flush();
+  await sync.signOut();
+  wipeLocal(); localStorage.removeItem(OWNER);
+  location.reload();
+}
+function askNewPassword() {
+  const m = openModal(`<section class="dialog">${corners()}<h2 class="ph">Nouveau mot de passe</h2>
+    <form class="auth" id="pwForm"><label><span class="lbl">Nouveau mot de passe</span><input name="pw" type="password" autocomplete="new-password" minlength="6" required></label>
+    <div class="row2"><button type="button" class="btn ghost" data-pwx>Annuler</button><button class="btn primary">Enregistrer</button></div><p class="auth-msg" role="status"></p></form></section>`);
+  m.onclick = e => { if (e.target.closest("[data-pwx]")) { m.onclick = null; closeModal(); } };
+  setTimeout(() => $("#pwForm input")?.focus(), 50);
+}
+const AUTH_ERR = {
+  "Invalid login credentials": "Email ou mot de passe incorrect.",
+  "User already registered": "Un compte existe déjà avec cet email : connecte-toi.",
+  "Email not confirmed": "Confirme d'abord ton email (pense à regarder dans les spams).",
+  "Password should be at least 6 characters.": "Le mot de passe doit faire au moins 6 caractères.",
+  "New password should be different from the old password.": "Choisis un mot de passe différent de l'ancien."
+};
+const authErr = err => AUTH_ERR[err?.message] || err?.message || "Une erreur est survenue, réessaie.";
 
 /* ---------- Fiche détaillée (bottom sheet) ---------- */
 function sheetTrophy(x) {
@@ -812,7 +921,7 @@ async function rollFate() {
 /* ---------- Partage, import, export ---------- */
 async function share() {
   toast(`<div class="unlock plain">Enluminure de ta carte…</div>`, 1500);
-  const blob = await makeCard({ game: G, s: stats(), metals: metals(), player: G.player });
+  const blob = await makeCard({ game: G, s: stats(), metals: metals(), player: me().name });
   const url = URL.createObjectURL(blob);
   const m = openModal(`<section class="dialog share">${corners()}<h2 class="ph">Ta carte de progression</h2><img src="${url}" alt="Carte de progression ${esc(G.name)}"><div class="row2"><button type="button" class="btn ghost" data-sx>Fermer</button><button type="button" class="btn primary" data-sg>${UI.share}Partager</button></div></section>`);
   m.onclick = async e => {
@@ -848,6 +957,13 @@ async function importBackup(data) {
   sync.schedule(0); refresh();
   toast(`<div class="unlock plain">Sauvegarde restaurée</div>`);
 }
+async function importSeed() {
+  const ok = await confirmBox({ title: "Reprendre l'ancienne progression", body: `<p>Les ${G.seed.done.length} trophées obtenus sur l'ancienne page seront scellés, sans date. Rien n'est retiré.</p>`, yes: "Reprendre", no: "Annuler" });
+  if (!ok) return;
+  G.seed.done.forEach(id => { const x = byId(id); if (x && statusOf(x) !== "done") save(x, { ...ts(id), status: "done", progress: x.goal || 0, doneAt: null }); });
+  refresh();
+  toast(`<div class="unlock plain">Progression reprise</div>`);
+}
 async function importGame(def) {
   const g = normalizeGame(def);
   lib.put("game:" + g.id, { def });
@@ -872,12 +988,24 @@ document.addEventListener("click", e => {
   if (a === "newrun") return newRun();
   if (a === "syncnow") return sync.syncNow();
   if (a === "retry") return sync.retry();
-  if (a === "signout") return sync.signOut().then(refresh);
+  if (a === "signout") return signOutFlow();
+  if (a === "pwchange") return askNewPassword();
+  if (a === "profile") return openWizard(true);
+  if (a === "forgot") {
+    const f = t.closest("form"), msg = f.querySelector(".auth-msg"), email = f.email.value.trim();
+    if (!email) { msg.textContent = "Écris d'abord ton email ci-dessus."; f.email.focus(); return; }
+    msg.textContent = "Envoi du lien…";
+    sync.resetPassword(email).then(() => { msg.textContent = "C'est envoyé : ouvre le lien reçu par email pour choisir un nouveau mot de passe."; }, err => { msg.textContent = authErr(err); });
+    return;
+  }
+  if (a === "seed") return importSeed();
   if (a === "export") return exportBackup();
   if (a === "tpl") return download("modele-jeu.json", TEMPLATE);
-  if (a === "calm") { prefs.calm = !prefs.calm; savePrefs(); document.body.classList.toggle("calm", prefs.calm); return renderView(); }
-  if (a === "sound") { prefs.sound = !prefs.sound; savePrefs(); setSound(prefs.sound); sfx.tick(); return renderView(); }
+
   if (a === "install" && installEvt) { installEvt.prompt(); installEvt.userChoice.finally(() => { installEvt = null; renderView(); }); return; }
+  const mt = t.closest("[data-me]"); if (mt) { const k = mt.dataset.me; setMe({ [k]: !me()[k] }); sfx.tick(); return wiz ? renderWizard() : refresh(); }
+  const tx = t.closest("[data-text]"); if (tx) { setMe({ text: tx.dataset.text }); sfx.tick(); return wiz ? renderWizard() : refresh(); }
+  const sv = t.closest("[data-start]"); if (sv) { setMe({ start: sv.dataset.start }); sfx.tick(); return refresh(); }
   const tab = t.closest("[data-tab]"); if (tab) { ui.tab = tab.dataset.tab; sfx.tick(); return renderView(); }
   const un = t.closest("[data-unf]"); if (un) { const [k, v] = un.dataset.unf.split(":"); ({ type: ui.types, cat: ui.cats, flag: ui.flags })[k].delete(v); return renderView(); }
   const fc = t.closest("[data-fcat]"); if (fc) { const k = fc.dataset.fcat; ui.cats.has(k) ? ui.cats.delete(k) : ui.cats.add(k); sfx.tick(); return refresh(); }
@@ -928,7 +1056,7 @@ document.addEventListener("change", async e => {
     const f = t.files?.[0], id = t.dataset.img;
     t.value = "";
     if (!f) return;
-    try { putKey("img:" + id, { src: await portraitFrom(f) }); sfx.stamp(); toast(`<div class="unlock plain">Portrait ajouté</div>`, 1800); }
+    try { const src = await portraitFrom(f); if (id === "me") { prof.put("avatar", { src }); sync.schedule(); if (wiz) renderWizard(); } else putKey("img:" + id, { src }); sfx.stamp(); toast(`<div class="unlock plain">Portrait ajouté</div>`, 1800); }
     catch (err) { toast(`<div class="unlock plain">Image illisible, essaie une autre photo</div>`, 2400); }
     return refresh();
   }
@@ -944,13 +1072,20 @@ document.addEventListener("change", async e => {
 document.addEventListener("submit", async e => {
   e.preventDefault();
   if (e.target.id === "addStep") { const i = $("#stepTxt"); customStep(byId(ui.sheet.id), "add", i.value); requestAnimationFrame(() => $("#stepTxt")?.focus()); }
-  if (e.target.id === "auth") {
-    const f = e.target, mode = e.submitter?.value || "in", msg = $("#authMsg");
-    msg.textContent = "Ouverture du portail…";
+  if (e.target.id === "pwForm") {
+    const f = e.target, msg = f.querySelector(".auth-msg");
+    msg.textContent = "Enregistrement…";
+    try { await sync.updatePassword(f.pw.value); closeModal(); toast(`<div class="unlock plain">Mot de passe changé</div>`, 2200); }
+    catch (err) { msg.textContent = authErr(err); }
+    return;
+  }
+  if (e.target.classList.contains("auth")) {
+    const f = e.target, mode = e.submitter?.value || "in", msg = f.querySelector(".auth-msg");
+    msg.textContent = mode === "up" ? "Création du compte…" : "Connexion…";
     try {
-      if (mode === "up") { const live = await sync.signUp(f.email.value, f.pw.value); msg.textContent = live ? "Compte créé." : "Compte créé : confirme ton email, puis connecte-toi ici."; }
-      else { await sync.signIn(f.email.value, f.pw.value); refresh(); }
-    } catch (err) { msg.textContent = err.message === "Invalid login credentials" ? "Email ou mot de passe incorrect." : (err.message || "Connexion impossible."); }
+      if (mode === "up") { const live = await sync.signUp(f.email.value.trim(), f.pw.value); msg.textContent = live ? "Compte créé, bienvenue !" : "Compte créé : clique sur le lien reçu par email (regarde aussi les spams), puis reviens te connecter ici."; }
+      else { await sync.signIn(f.email.value.trim(), f.pw.value); msg.textContent = "Connecté·e !"; if (wiz) renderWizard(); else refresh(); }
+    } catch (err) { msg.textContent = authErr(err); }
   }
 });
 document.addEventListener("keydown", e => {
@@ -961,7 +1096,7 @@ document.addEventListener("keydown", e => {
     return;
   }
   if (e.key !== "Escape") return;
-  if (!$("#modal").hidden) { $("#modal").click(); return; }
+  if (!$("#modal").hidden) { if (!wiz) $("#modal").click(); return; }
   closeSheet();
 });
 // glisser la fiche vers le bas pour la fermer
@@ -977,8 +1112,14 @@ addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = 
 /* ---------- Démarrage ---------- */
 useGame(prefs.game);
 const start = location.hash.slice(1);
-if (NAV.some(n => n[0] === start)) ui.view = start;
+ui.view = NAV.some(n => n[0] === start) ? start : (NAV.some(n => n[0] === me().start) ? me().start : "home");
 renderBar(); renderNav(); renderView();
 initMotes($("#motes"));
-sync.init({ status: () => { renderBar(); if (ui.view === "more" && !editingIn($("#view"))) renderView(); }, remote: () => refresh() });
+sync.init({
+  status: st => { renderBar(); if (ui.view === "more" && !editingIn($("#view"))) renderView(); if (["ok", "error", "offline", "signedout"].includes(st)) maybeWizard(); },
+  remote: () => { applySettings(); refresh(); },
+  auth: onAuth
+});
+// sans compte enregistré sur l'appareil, on accueille tout de suite ; sinon on attend le profil du serveur
+if (!sync.enabled() || !localStorage.getItem("grimoire:auth")) maybeWizard();
 if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
