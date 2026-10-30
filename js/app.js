@@ -7,7 +7,7 @@ import { sfx, setSound } from "./sound.js";
 import { makeCard, shareBlob } from "./share.js";
 import { initMotes, burst } from "./motes.js";
 
-const VERSION = "3.1.0";
+const VERSION = "3.2.0";
 const $ = (s, r = document) => r.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = n => Number(n).toLocaleString("fr-FR");

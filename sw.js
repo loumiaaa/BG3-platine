@@ -1,5 +1,5 @@
 /* Service worker : l'app fonctionne hors ligne. Incrémente VERSION à chaque mise en ligne. */
-const VERSION = "grimoire-v3.1.0";
+const VERSION = "grimoire-v3.2.0";
 const SHELL = [
   "./", "./index.html", "./manifest.webmanifest", "./config.js", "./css/app.css",
   "./js/app.js", "./js/store.js", "./js/sync.js", "./js/games.js", "./js/icons.js", "./js/die.js",
